@@ -1,0 +1,10 @@
+# Generated files
+**/dist
+**/build
+**/node_modules
+**/.next
+**/coverage
+
+# Configuration files that may have specific formatting
+**/package-lock.json
+**/pnpm-lock.yaml
