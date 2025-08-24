@@ -1,14 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { PGliteTestAdapter } from '../pglite-adapter';
-import { db } from '../setup';
+import { adapter } from '../setup';
 import { createTestCustomer, createTestSubscription } from '../fixtures/test-data';
 import type { Customer, Subscription } from '../../src/types';
 
-describe('PGliteTestAdapter', () => {
-  let adapter: PGliteTestAdapter;
-
+describe('DrizzleAdapter', () => {
   beforeEach(() => {
-    adapter = new PGliteTestAdapter(db);
+    // adapter is already initialized in setup.ts
   });
 
   describe('Customer Operations', () => {
@@ -199,14 +196,14 @@ describe('PGliteTestAdapter', () => {
       
       const result = await adapter.findOne<Customer>('customer', { id: customerData.id });
       
-      // Verify that snake_case fields are converted to camelCase
-      expect(result?.billableId).toBeDefined(); // billable_id -> billableId
-      expect(result?.providerId).toBeDefined(); // provider_id -> providerId
-      expect(result?.createdAt).toBeInstanceOf(Date); // created_at -> createdAt
-      expect(result?.updatedAt).toBeInstanceOf(Date); // updated_at -> updatedAt
+      // Verify that camelCase fields are properly handled
+      expect(result?.billableId).toBeDefined();
+      expect(result?.providerId).toBeDefined();
+      expect(result?.createdAt).toBeInstanceOf(Date);
+      expect(result?.updatedAt).toBeInstanceOf(Date);
     });
 
-    it('should handle special field mappings for reserved keywords', async () => {
+    it('should handle timestamp fields properly', async () => {
       // First create the customer to satisfy foreign key constraint
       const customerData = createTestCustomer();
       await adapter.create<Customer>('customer', customerData);

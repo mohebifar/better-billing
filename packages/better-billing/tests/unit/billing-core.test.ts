@@ -1,17 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { BillingCore } from '../../src/core/billing';
-import { PGliteTestAdapter } from '../pglite-adapter';
-import { db } from '../setup';
+import { adapter } from '../setup';
 import { createTestCustomer, createTestSubscription } from '../fixtures/test-data';
 
 describe('BillingCore', () => {
   let billingCore: BillingCore;
-  let dbAdapter: PGliteTestAdapter;
 
   beforeEach(() => {
-    dbAdapter = new PGliteTestAdapter(db);
     billingCore = new BillingCore({
-      database: dbAdapter,
+      database: adapter,
     });
   });
 

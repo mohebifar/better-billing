@@ -1,5 +1,5 @@
 import { and, desc, eq, gt, gte, inArray, like, lt, lte, ne, or, type SQL } from 'drizzle-orm';
-import type { DatabaseAdapter, Where } from './types';
+import type { DatabaseAdapter, Where, WhereMaybeArray } from './types';
 
 export type { Where } from './types';
 
@@ -203,20 +203,27 @@ export function drizzleAdapter(db: DrizzleDB, config: DrizzleAdapterConfig): Dat
 
     async create<T>(model: string, data: Partial<T>): Promise<T> {
       const schemaModel = getSchema(model);
-      checkMissingFields(schemaModel, model, data as Record<string, any>);
 
-      const builder = db.insert(schemaModel).values(data);
-      const result = await withReturning(model, builder, data as Record<string, any>);
+      // Generate ID if not provided
+      const recordData = { ...data } as any;
+      if (!recordData.id) {
+        recordData.id = `${model}_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+      }
+
+      checkMissingFields(schemaModel, model, recordData);
+
+      const builder = db.insert(schemaModel).values(recordData);
+      const result = await withReturning(model, builder, recordData);
       return result as T;
     },
 
-    async update<T>(model: string, where: any, data: Partial<T>): Promise<T> {
+    async update<T>(model: string, where: WhereMaybeArray, data: Partial<T>): Promise<T> {
       const schemaModel = getSchema(model);
 
       // Convert where clause
       const whereConditions = Array.isArray(where)
         ? where
-        : [{ field: 'id', value: where.id || where }];
+        : Object.entries(where).map(([field, value]) => ({ field, value }));
       const clause = convertWhereClause(whereConditions, model);
 
       const builder = db
@@ -227,13 +234,13 @@ export function drizzleAdapter(db: DrizzleDB, config: DrizzleAdapterConfig): Dat
       return await withReturning(model, builder, data as Record<string, any>, whereConditions);
     },
 
-    async findOne<T>(model: string, where: any): Promise<T | null> {
+    async findOne<T>(model: string, where: WhereMaybeArray): Promise<T | null> {
       const schemaModel = getSchema(model);
 
       // Convert where clause
       const whereConditions = Array.isArray(where)
         ? where
-        : [{ field: 'id', value: where.id || where }];
+        : Object.entries(where).map(([field, value]) => ({ field, value }));
       const clause = convertWhereClause(whereConditions, model);
 
       const result = await db
@@ -253,7 +260,7 @@ export function drizzleAdapter(db: DrizzleDB, config: DrizzleAdapterConfig): Dat
       if (where) {
         const whereConditions = Array.isArray(where)
           ? where
-          : [{ field: 'id', value: where.id || where }];
+          : Object.entries(where).map(([field, value]) => ({ field, value }));
         const clause = convertWhereClause(whereConditions, model);
         query = query.where(...clause);
       }
@@ -262,13 +269,13 @@ export function drizzleAdapter(db: DrizzleDB, config: DrizzleAdapterConfig): Dat
       return result as T[];
     },
 
-    async delete(model: string, where: any): Promise<void> {
+    async delete(model: string, where: WhereMaybeArray): Promise<void> {
       const schemaModel = getSchema(model);
 
       // Convert where clause
       const whereConditions = Array.isArray(where)
         ? where
-        : [{ field: 'id', value: where.id || where }];
+        : Object.entries(where).map(([field, value]) => ({ field, value }));
       const clause = convertWhereClause(whereConditions, model);
 
       await db.delete(schemaModel).where(...clause);

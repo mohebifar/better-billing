@@ -1,14 +1,25 @@
 import { PGlite } from '@electric-sql/pglite';
+import { drizzle } from 'drizzle-orm/pglite';
 import { beforeAll, afterAll, beforeEach } from 'vitest';
+import { drizzleAdapter } from '../src/adapters/drizzle';
+import * as schema from './schema';
 
-let db: PGlite;
+let pglite: PGlite;
+let db: ReturnType<typeof drizzle>;
+let adapter: ReturnType<typeof drizzleAdapter>;
 
 beforeAll(async () => {
-  // Create an in-memory PGlite database
-  db = new PGlite();
+  pglite = new PGlite();
+  
+  db = drizzle(pglite, { schema });
+  
+  adapter = drizzleAdapter(db, { 
+    provider: 'pg',
+    schema,
+  });
   
   // Create the Better Billing schema tables
-  await db.exec(`
+  await pglite.exec(`
     CREATE TABLE IF NOT EXISTS customer (
       id VARCHAR(255) PRIMARY KEY,
       billable_id VARCHAR(255) NOT NULL,
@@ -100,7 +111,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   // Clean up data before each test
-  await db.exec(`
+  await pglite.exec(`
     DELETE FROM payment_method;
     DELETE FROM usage;
     DELETE FROM invoice;
@@ -111,7 +122,7 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
-  await db.close();
+  await pglite.close();
 });
 
-export { db };
+export { db, adapter, pglite };

@@ -16,6 +16,8 @@ export interface Where {
   connector?: 'AND' | 'OR';
 }
 
+export type WhereMaybeArray = Where | Where[];
+
 export interface SortBy {
   field: string;
   direction: 'asc' | 'desc';
