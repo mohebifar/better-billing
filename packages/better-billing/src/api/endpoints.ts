@@ -1,5 +1,5 @@
 import { createEndpoint, createMiddleware } from 'better-call';
-import type { BillingCore } from '../core/billing';
+import type { BetterBilling } from '../types';
 import {
   AddPaymentMethodRequestSchema,
   CancelSubscriptionRequestSchema,
@@ -10,8 +10,6 @@ import {
   GetInvoicesRequestSchema,
   GetPaymentMethodsRequestSchema,
   GetSubscriptionsRequestSchema,
-  GetUsageRequestSchema,
-  ReportUsageRequestSchema,
   ResumeSubscriptionRequestSchema,
   SetDefaultPaymentMethodRequestSchema,
   SubscribeRequestSchema,
@@ -20,7 +18,7 @@ import {
 } from './schemas';
 
 // Middleware to inject billing instance
-export const billingMiddleware = (billing: BillingCore) =>
+export const billingMiddleware = (billing: BetterBilling) =>
   createMiddleware(async () => {
     return {
       billing,
@@ -28,7 +26,7 @@ export const billingMiddleware = (billing: BillingCore) =>
   });
 
 // Customer endpoints
-export const createCustomerEndpoint = (billing: BillingCore) =>
+export const createCustomerEndpoint = (billing: BetterBilling) =>
   createEndpoint(
     '/api/billing/customers',
     {
@@ -44,7 +42,7 @@ export const createCustomerEndpoint = (billing: BillingCore) =>
       },
     },
     async (ctx) => {
-      const customer = await ctx.context.billing.createCustomer({
+      const customer = await ctx.context.billing.methods.core.createCustomer({
         billableId: ctx.body.billableId,
         billableType: ctx.body.billableType,
         email: ctx.body.email,
@@ -55,7 +53,7 @@ export const createCustomerEndpoint = (billing: BillingCore) =>
     }
   );
 
-export const getCustomerEndpoint = (billing: BillingCore) =>
+export const getCustomerEndpoint = (billing: BetterBilling) =>
   createEndpoint(
     '/api/billing/customers',
     {
@@ -71,11 +69,8 @@ export const getCustomerEndpoint = (billing: BillingCore) =>
       },
     },
     async (ctx) => {
-      const where = ctx.query.customerId
-        ? { id: ctx.query.customerId }
-        : { billableId: ctx.query.billableId! };
-
-      const customer = await ctx.context.billing.getCustomer(where);
+      const customerId = ctx.query.customerId || ctx.query.billableId!;
+      const customer = await ctx.context.billing.methods.core.getCustomer(customerId);
       if (!customer) {
         throw ctx.error(404, { message: 'Customer not found' });
       }
@@ -84,7 +79,7 @@ export const getCustomerEndpoint = (billing: BillingCore) =>
     }
   );
 
-export const updateCustomerEndpoint = (billing: BillingCore) =>
+export const updateCustomerEndpoint = (billing: BetterBilling) =>
   createEndpoint(
     '/api/billing/customers/:customerId',
     {
@@ -100,17 +95,20 @@ export const updateCustomerEndpoint = (billing: BillingCore) =>
       },
     },
     async (ctx) => {
-      const customer = await ctx.context.billing.updateCustomer(ctx.params.customerId, {
-        email: ctx.body.email,
-        metadata: { ...ctx.body.metadata, name: ctx.body.name },
-      });
+      const customer = await ctx.context.billing.methods.core.updateCustomer(
+        ctx.params.customerId,
+        {
+          email: ctx.body.email,
+          metadata: { ...ctx.body.metadata, name: ctx.body.name },
+        }
+      );
 
       return customer;
     }
   );
 
 // Subscription endpoints
-export const subscribeEndpoint = (billing: BillingCore) =>
+export const subscribeEndpoint = (billing: BetterBilling) =>
   createEndpoint(
     '/api/billing/subscriptions',
     {
@@ -126,32 +124,27 @@ export const subscribeEndpoint = (billing: BillingCore) =>
       },
     },
     async (ctx) => {
-      const customer = await ctx.context.billing.getCustomer({
-        id: ctx.body.customerId,
-      });
+      const customer = await ctx.context.billing.methods.core.getCustomer(ctx.body.customerId);
       if (!customer) {
         throw ctx.error(404, { message: 'Customer not found' });
       }
 
-      const subscription = await ctx.context.billing.createSubscription({
+      const subscription = await ctx.context.billing.methods.core.createSubscription({
         customerId: ctx.body.customerId,
-        priceId: ctx.body.priceId,
-        quantity: ctx.body.quantity,
-        productId: 'product_default', // TODO: Extract from price
-        providerId: 'provider_default',
-        providerSubscriptionId: `sub_${Date.now()}`,
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-        trialEnd: ctx.body.trialDays
-          ? new Date(Date.now() + ctx.body.trialDays * 24 * 60 * 60 * 1000)
-          : undefined,
+        items: [
+          {
+            priceId: ctx.body.priceId,
+            quantity: ctx.body.quantity || 1,
+          },
+        ],
+        trialDays: ctx.body.trialDays,
       });
 
       return subscription;
     }
   );
 
-export const getSubscriptionsEndpoint = (billing: BillingCore) =>
+export const getSubscriptionsEndpoint = (billing: BetterBilling) =>
   createEndpoint(
     '/api/billing/subscriptions',
     {
@@ -172,12 +165,12 @@ export const getSubscriptionsEndpoint = (billing: BillingCore) =>
         where.status = ctx.query.status;
       }
 
-      const subscriptions = await ctx.context.billing.getSubscriptions(where);
+      const subscriptions = await ctx.context.billing.methods.core.listSubscriptions(where);
       return subscriptions;
     }
   );
 
-export const updateSubscriptionEndpoint = (billing: BillingCore) =>
+export const updateSubscriptionEndpoint = (billing: BetterBilling) =>
   createEndpoint(
     '/api/billing/subscriptions/:subscriptionId',
     {
@@ -193,16 +186,25 @@ export const updateSubscriptionEndpoint = (billing: BillingCore) =>
       },
     },
     async (ctx) => {
-      const subscription = await ctx.context.billing.updateSubscription(ctx.params.subscriptionId, {
-        priceId: ctx.body.priceId,
-        quantity: ctx.body.quantity,
-      });
+      const subscription = await ctx.context.billing.methods.core.updateSubscription(
+        ctx.params.subscriptionId,
+        {
+          items: ctx.body.priceId
+            ? [
+                {
+                  priceId: ctx.body.priceId,
+                  quantity: ctx.body.quantity || 1,
+                },
+              ]
+            : undefined,
+        }
+      );
 
       return subscription;
     }
   );
 
-export const cancelSubscriptionEndpoint = (billing: BillingCore) =>
+export const cancelSubscriptionEndpoint = (billing: BetterBilling) =>
   createEndpoint(
     '/api/billing/subscriptions/:subscriptionId/cancel',
     {
@@ -218,16 +220,19 @@ export const cancelSubscriptionEndpoint = (billing: BillingCore) =>
       },
     },
     async (ctx) => {
-      const subscription = await ctx.context.billing.cancelSubscription(
+      const subscription = await ctx.context.billing.methods.core.cancelSubscription(
         ctx.params.subscriptionId,
-        ctx.body.immediately
+        {
+          immediately: ctx.body.immediately,
+          atPeriodEnd: !ctx.body.immediately,
+        }
       );
 
       return subscription;
     }
   );
 
-export const resumeSubscriptionEndpoint = (billing: BillingCore) =>
+export const resumeSubscriptionEndpoint = (billing: BetterBilling) =>
   createEndpoint(
     '/api/billing/subscriptions/:subscriptionId/resume',
     {
@@ -243,18 +248,15 @@ export const resumeSubscriptionEndpoint = (billing: BillingCore) =>
       },
     },
     async (ctx) => {
-      const subscription = await ctx.context.billing.updateSubscription(ctx.params.subscriptionId, {
-        status: 'active',
-        cancelAt: undefined,
-        canceledAt: undefined,
-      });
-
+      const subscription = await ctx.context.billing.methods.core.resumeSubscription(
+        ctx.params.subscriptionId
+      );
       return subscription;
     }
   );
 
 // Checkout & Portal endpoints
-export const createCheckoutEndpoint = (billing: BillingCore) =>
+export const createCheckoutEndpoint = (billing: BetterBilling) =>
   createEndpoint(
     '/api/billing/checkout',
     {
@@ -270,7 +272,7 @@ export const createCheckoutEndpoint = (billing: BillingCore) =>
       },
     },
     async (ctx) => {
-      const provider = ctx.context.billing.paymentProvider;
+      const provider = ctx.context.billing.getProvider();
       if (!provider) {
         throw ctx.error(400, { message: 'No payment provider configured' });
       }
@@ -287,7 +289,7 @@ export const createCheckoutEndpoint = (billing: BillingCore) =>
     }
   );
 
-export const createPortalEndpoint = (billing: BillingCore) =>
+export const createPortalEndpoint = (billing: BetterBilling) =>
   createEndpoint(
     '/api/billing/portal',
     {
@@ -303,7 +305,7 @@ export const createPortalEndpoint = (billing: BillingCore) =>
       },
     },
     async (ctx) => {
-      const provider = ctx.context.billing.paymentProvider;
+      const provider = ctx.context.billing.getProvider();
       if (!provider) {
         throw ctx.error(400, { message: 'No payment provider configured' });
       }
@@ -313,78 +315,10 @@ export const createPortalEndpoint = (billing: BillingCore) =>
     }
   );
 
-// Usage endpoints
-export const reportUsageEndpoint = (billing: BillingCore) =>
-  createEndpoint(
-    '/api/billing/usage',
-    {
-      method: 'POST',
-      body: ReportUsageRequestSchema,
-      use: [billingMiddleware(billing)],
-      metadata: {
-        openapi: {
-          summary: 'Report usage',
-          description: 'Records usage data for metered billing',
-          tags: ['Usage'],
-        },
-      },
-    },
-    async (ctx) => {
-      const usage = await ctx.context.billing.reportUsage({
-        subscriptionItemId: ctx.body.subscriptionItemId,
-        customerId: 'customer_default', // TODO: Get from subscription item
-        productId: 'product_default',
-        quantity: ctx.body.quantity,
-        timestamp: ctx.body.timestamp || new Date(),
-        idempotencyKey: ctx.body.idempotencyKey,
-      });
-
-      return {
-        id: usage.id,
-        quantity: usage.quantity,
-        timestamp: usage.timestamp,
-      };
-    }
-  );
-
-export const getUsageEndpoint = (billing: BillingCore) =>
-  createEndpoint(
-    '/api/billing/usage',
-    {
-      method: 'GET',
-      query: GetUsageRequestSchema,
-      use: [billingMiddleware(billing)],
-      metadata: {
-        openapi: {
-          summary: 'Get usage data',
-          description: 'Retrieves usage data for a subscription item',
-          tags: ['Usage'],
-        },
-      },
-    },
-    async (ctx) => {
-      const where: any = { subscriptionItemId: ctx.query.subscriptionItemId };
-
-      if (ctx.query.startDate) {
-        where.timestamp = { gte: ctx.query.startDate };
-      }
-
-      if (ctx.query.endDate) {
-        where.timestamp = { ...where.timestamp, lte: ctx.query.endDate };
-      }
-
-      const usageRecords = await ctx.context.billing.getUsage(where);
-
-      return usageRecords.map((u) => ({
-        id: u.id,
-        quantity: u.quantity,
-        timestamp: u.timestamp,
-      }));
-    }
-  );
+// Usage endpoints will be provided by usage-metering plugin
 
 // Invoice endpoints
-export const getInvoicesEndpoint = (billing: BillingCore) =>
+export const getInvoicesEndpoint = (billing: BetterBilling) =>
   createEndpoint(
     '/api/billing/invoices',
     {
@@ -406,12 +340,13 @@ export const getInvoicesEndpoint = (billing: BillingCore) =>
         where.status = ctx.query.status;
       }
 
-      const invoices = await ctx.context.billing.getInvoices(where);
+      // TODO: Implement getInvoices in core plugin
+      const invoices: any[] = [];
       return invoices;
     }
   );
 
-export const downloadInvoiceEndpoint = (billing: BillingCore) =>
+export const downloadInvoiceEndpoint = (billing: BetterBilling) =>
   createEndpoint(
     '/api/billing/invoices/:invoiceId/download',
     {
@@ -435,7 +370,7 @@ export const downloadInvoiceEndpoint = (billing: BillingCore) =>
   );
 
 // Payment Method endpoints
-export const addPaymentMethodEndpoint = (billing: BillingCore) =>
+export const addPaymentMethodEndpoint = (billing: BetterBilling) =>
   createEndpoint(
     '/api/billing/payment-methods',
     {
@@ -465,7 +400,7 @@ export const addPaymentMethodEndpoint = (billing: BillingCore) =>
     }
   );
 
-export const removePaymentMethodEndpoint = (billing: BillingCore) =>
+export const removePaymentMethodEndpoint = (billing: BetterBilling) =>
   createEndpoint(
     '/api/billing/payment-methods/:paymentMethodId',
     {
@@ -485,7 +420,7 @@ export const removePaymentMethodEndpoint = (billing: BillingCore) =>
     }
   );
 
-export const setDefaultPaymentMethodEndpoint = (billing: BillingCore) =>
+export const setDefaultPaymentMethodEndpoint = (billing: BetterBilling) =>
   createEndpoint(
     '/api/billing/payment-methods/:paymentMethodId/default',
     {
@@ -515,7 +450,7 @@ export const setDefaultPaymentMethodEndpoint = (billing: BillingCore) =>
     }
   );
 
-export const getPaymentMethodsEndpoint = (billing: BillingCore) =>
+export const getPaymentMethodsEndpoint = (billing: BetterBilling) =>
   createEndpoint(
     '/api/billing/payment-methods',
     {
@@ -530,17 +465,16 @@ export const getPaymentMethodsEndpoint = (billing: BillingCore) =>
         },
       },
     },
-    async (ctx) => {
-      const paymentMethods = await ctx.context.billing.getPaymentMethods({
-        customerId: ctx.query.customerId,
-      });
+    async (_ctx) => {
+      // TODO: Implement getPaymentMethods in core plugin
+      const paymentMethods: any[] = [];
 
       return paymentMethods;
     }
   );
 
 // Webhook endpoint
-export const handleWebhookEndpoint = (billing: BillingCore) =>
+export const handleWebhookEndpoint = (billing: BetterBilling) =>
   createEndpoint(
     '/api/billing/webhooks',
     {
@@ -556,19 +490,19 @@ export const handleWebhookEndpoint = (billing: BillingCore) =>
       },
     },
     async (ctx) => {
-      const provider = ctx.context.billing.paymentProvider;
+      const provider = ctx.context.billing.getProvider();
       if (!provider) {
         throw ctx.error(400, { message: 'No payment provider configured' });
       }
 
-      const signature = ctx.headers.get('x-webhook-signature') || 
-                        ctx.headers.get('stripe-signature') || '';
+      const signature =
+        ctx.headers.get('x-webhook-signature') || ctx.headers.get('stripe-signature') || '';
       const body = ctx.request ? await ctx.request.text() : '';
 
       try {
         // Construct and verify webhook event
         const event = provider.constructWebhookEvent(body, signature);
-        
+
         // Handle the webhook event
         await provider.handleWebhook(event);
 
@@ -578,9 +512,9 @@ export const handleWebhookEndpoint = (billing: BillingCore) =>
         };
       } catch (error) {
         console.error('Webhook processing error:', error);
-        throw ctx.error(400, { 
+        throw ctx.error(400, {
           message: 'Invalid webhook signature or payload',
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     }

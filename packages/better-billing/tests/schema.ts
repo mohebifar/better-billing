@@ -60,12 +60,16 @@ export const invoice = pgTable('invoice', {
 export const usage = pgTable('usage', {
   id: varchar('id', { length: 255 }).primaryKey(),
   customerId: varchar('customer_id', { length: 255 }).notNull().references(() => customer.id),
+  subscriptionId: varchar('subscription_id', { length: 255 }).references(() => subscription.id),
+  metricName: varchar('metric_name', { length: 255 }).notNull(),
   subscriptionItemId: varchar('subscription_item_id', { length: 255 }).references(() => subscriptionItem.id),
   productId: varchar('product_id', { length: 255 }).notNull(),
   quantity: integer('quantity').notNull(),
   timestamp: timestamp('timestamp').notNull(),
   metadata: jsonb('metadata'),
   idempotencyKey: varchar('idempotency_key', { length: 255 }),
+  createdAt: timestamp('created_at').notNull(),
+  updatedAt: timestamp('updated_at').notNull(),
 });
 
 export const paymentMethod = pgTable('payment_method', {

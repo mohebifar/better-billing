@@ -1,4 +1,4 @@
-import type { BillingCore } from '../core/billing';
+import type { BetterBilling } from '../types';
 
 export interface BillingOptions {
   baseURL?: string;
@@ -9,20 +9,8 @@ export interface BillingOptions {
  * SvelteKit handler adapter for Better Billing
  * Converts Better Call router handler to SvelteKit format
  */
-export const toSvelteKitHandler = (
-  billing:
-    | BillingCore
-    | {
-        handler: (request: Request) => Promise<Response>;
-        options?: BillingOptions;
-      }
-) => {
-  const handler =
-    billing instanceof Object && 'api' in billing
-      ? (billing as BillingCore).api.router.handler
-      : billing.handler;
-
-  return (event: { request: Request }) => handler(event.request);
+export const toSvelteKitHandler = (billing: BetterBilling) => {
+  return (event: { request: Request }) => billing.api.handler(event.request);
 };
 
 /**

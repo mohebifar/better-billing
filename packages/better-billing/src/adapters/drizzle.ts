@@ -1,20 +1,29 @@
 import { and, desc, eq, gt, gte, inArray, like, lt, lte, ne, or, type SQL } from 'drizzle-orm';
+import type {
+  PgDeleteBase,
+  PgDeleteWithout,
+  PgSelect,
+  PgSelectWithout,
+  PgUpdateBase,
+  PgUpdateWithout,
+} from 'drizzle-orm/pg-core';
+import type { PgliteDatabase } from 'drizzle-orm/pglite';
 import type { DatabaseAdapter, Where, WhereMaybeArray } from './types';
 
-export type { Where } from './types';
+export type { Where, WhereMaybeArray } from './types';
 
-export interface DrizzleDB {
-  [key: string]: any;
-  _: {
-    fullSchema: Record<string, any>;
-  };
-}
+type DrizzleSelect = PgSelect | PgSelectWithout<any, any, any, any>;
+type DrizzleUpdate = PgUpdateBase<any, any, any, any, any, any> | PgUpdateWithout<any, any, any>;
+type DrizzleDelete = PgDeleteBase<any, any, any, any, any, any> | PgDeleteWithout<any, any, any>;
+type DrizzleDb = PgliteDatabase<Record<string, unknown>>;
+
+export interface DrizzleDB extends DrizzleDb {}
 
 export interface DrizzleAdapterConfig {
   /**
    * The schema object that defines the tables and fields
    */
-  schema?: Record<string, any>;
+  schema?: Record<string, unknown>;
   /**
    * The database provider
    */
@@ -52,12 +61,12 @@ export function drizzleAdapter(db: DrizzleDB, config: DrizzleAdapterConfig): Dat
         `[Drizzle Adapter]: The model "${model}" (or "${modelName}") was not found in the schema object. Please pass the schema directly to the adapter options.`
       );
     }
-    return schemaModel;
+    return schemaModel as any;
   }
 
   const withReturning = async (
     model: string,
-    builder: any,
+    builder: DrizzleSelect | DrizzleUpdate | DrizzleDelete,
     data: Record<string, any>,
     where?: Where[]
   ) => {
@@ -75,7 +84,7 @@ export function drizzleAdapter(db: DrizzleDB, config: DrizzleAdapterConfig): Dat
       const res = await db
         .select()
         .from(schemaModel)
-        .where(...clause);
+        .where(and(...clause));
       return res[0];
     } else if (data.id) {
       const res = await db
@@ -162,7 +171,9 @@ export function drizzleAdapter(db: DrizzleDB, config: DrizzleAdapterConfig): Dat
           return eq(field, w.value);
         })
       );
-      clause.push(andClause!);
+      if (andClause) {
+        clause.push(andClause);
+      }
     }
 
     if (orGroup.length) {
@@ -172,16 +183,18 @@ export function drizzleAdapter(db: DrizzleDB, config: DrizzleAdapterConfig): Dat
           return eq(field, w.value);
         })
       );
-      clause.push(orClause!);
+      if (orClause) {
+        clause.push(orClause);
+      }
     }
 
     return clause;
   }
 
   function checkMissingFields(
-    schema: Record<string, any>,
+    schema: Record<string, unknown>,
     model: string,
-    values: Record<string, any>
+    values: Record<string, unknown>
   ) {
     if (!schema) {
       throw new Error(
@@ -205,7 +218,7 @@ export function drizzleAdapter(db: DrizzleDB, config: DrizzleAdapterConfig): Dat
       const schemaModel = getSchema(model);
 
       // Generate ID if not provided
-      const recordData = { ...data } as any;
+      const recordData = { ...data } as Record<string, any>;
       if (!recordData.id) {
         recordData.id = `${model}_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
       }
@@ -221,48 +234,46 @@ export function drizzleAdapter(db: DrizzleDB, config: DrizzleAdapterConfig): Dat
       const schemaModel = getSchema(model);
 
       // Convert where clause
-      const whereConditions = Array.isArray(where)
-        ? where
-        : Object.entries(where).map(([field, value]) => ({ field, value }));
+      const whereConditions = Array.isArray(where) ? where : [where];
       const clause = convertWhereClause(whereConditions, model);
 
-      const builder = db
-        .update(schemaModel)
-        .set(data)
-        .where(...clause);
+      let builder = db.update(schemaModel).set(data) as DrizzleUpdate;
 
-      return await withReturning(model, builder, data as Record<string, any>, whereConditions);
+      if (clause.length > 0) {
+        builder = builder.where(and(...clause));
+      }
+
+      return await withReturning(model, builder, data, whereConditions);
     },
 
     async findOne<T>(model: string, where: WhereMaybeArray): Promise<T | null> {
       const schemaModel = getSchema(model);
 
       // Convert where clause
-      const whereConditions = Array.isArray(where)
-        ? where
-        : Object.entries(where).map(([field, value]) => ({ field, value }));
+      const whereConditions = Array.isArray(where) ? where : [where];
+
       const clause = convertWhereClause(whereConditions, model);
 
-      const result = await db
-        .select()
-        .from(schemaModel)
-        .where(...clause)
-        .limit(1);
+      let query = db.select().from(schemaModel) as DrizzleSelect;
+
+      if (clause.length > 0) {
+        query = query.where(and(...clause));
+      }
+
+      const result = await query.limit(1);
 
       return result.length > 0 ? (result[0] as T) : null;
     },
 
-    async findMany<T>(model: string, where?: any): Promise<T[]> {
+    async findMany<T>(model: string, where?: WhereMaybeArray): Promise<T[]> {
       const schemaModel = getSchema(model);
 
-      let query = db.select().from(schemaModel);
+      let query = db.select().from(schemaModel) as DrizzleSelect;
 
       if (where) {
-        const whereConditions = Array.isArray(where)
-          ? where
-          : Object.entries(where).map(([field, value]) => ({ field, value }));
+        const whereConditions = Array.isArray(where) ? where : [where];
         const clause = convertWhereClause(whereConditions, model);
-        query = query.where(...clause);
+        query = query.where(and(...clause));
       }
 
       const result = await query;
@@ -273,12 +284,16 @@ export function drizzleAdapter(db: DrizzleDB, config: DrizzleAdapterConfig): Dat
       const schemaModel = getSchema(model);
 
       // Convert where clause
-      const whereConditions = Array.isArray(where)
-        ? where
-        : Object.entries(where).map(([field, value]) => ({ field, value }));
+      const whereConditions = Array.isArray(where) ? where : [where];
       const clause = convertWhereClause(whereConditions, model);
 
-      await db.delete(schemaModel).where(...clause);
+      let query = db.delete(schemaModel) as DrizzleDelete;
+
+      if (clause.length > 0) {
+        query = query.where(and(...clause));
+      }
+
+      await query;
     },
 
     // Transaction support

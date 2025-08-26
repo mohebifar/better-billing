@@ -1,5 +1,5 @@
 {
-  "name": "@better-billing/core",
+  "name": "better-billing",
   "version": "0.1.0",
   "description": "TypeScript-first, provider-agnostic billing infrastructure",
   "type": "module",
@@ -32,8 +32,8 @@
     "build": "unbuild",
     "dev": "unbuild --stub",
     "prepack": "pnpm build",
-    "test": "vitest",
-    "test:run": "vitest run",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "lint": "biome lint src/",
@@ -52,6 +52,18 @@
   ],
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mohebifar/better-billing.git",
+    "directory": "packages/better-billing"
+  },
+  "homepage": "https://github.com/mohebifar/better-billing#readme",
+  "bugs": {
+    "url": "https://github.com/mohebifar/better-billing/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "devDependencies": {
     "@electric-sql/pglite": "^0.3.7",
     "@prisma/client": "^5.0.0",

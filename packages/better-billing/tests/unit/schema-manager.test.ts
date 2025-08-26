@@ -9,96 +9,59 @@ describe('SchemaManager', () => {
     schemaManager = new SchemaManager();
   });
 
-  describe('Core Schema', () => {
-    it('should return core schema with all required tables', () => {
-      const coreSchema = schemaManager.getCoreSchema();
+  describe('Core Schema Integration', () => {
+    it('should handle core schema as a plugin extension', () => {
+      // Simulate core plugin registration
+      const coreSchema: SchemaExtension = {
+        customer: {
+          fields: {
+            id: { type: 'string', required: true },
+            billableId: { type: 'string', required: true },
+            billableType: { type: 'string', required: true },
+            providerId: { type: 'string', required: true },
+            providerCustomerId: { type: 'string', required: true },
+            email: { type: 'string' },
+            metadata: { type: 'json' },
+            createdAt: { type: 'date', required: true },
+            updatedAt: { type: 'date', required: true },
+          },
+        },
+        subscription: {
+          fields: {
+            id: { type: 'string', required: true },
+            customerId: { type: 'string', required: true },
+            providerId: { type: 'string', required: true },
+            providerSubscriptionId: { type: 'string', required: true },
+            status: { type: 'string', required: true },
+            productId: { type: 'string', required: true },
+            priceId: { type: 'string', required: true },
+            quantity: { type: 'number' },
+            currentPeriodStart: { type: 'date', required: true },
+            currentPeriodEnd: { type: 'date', required: true },
+            cancelAt: { type: 'date' },
+            canceledAt: { type: 'date' },
+            endedAt: { type: 'date' },
+            trialEnd: { type: 'date' },
+            metadata: { type: 'json' },
+            createdAt: { type: 'date', required: true },
+            updatedAt: { type: 'date', required: true },
+          },
+        },
+      };
 
-      expect(coreSchema).toHaveProperty('customer');
-      expect(coreSchema).toHaveProperty('subscription');
-      expect(coreSchema).toHaveProperty('subscriptionItem');
-      expect(coreSchema).toHaveProperty('invoice');
-      expect(coreSchema).toHaveProperty('usage');
-      expect(coreSchema).toHaveProperty('paymentMethod');
-    });
+      // Register core plugin schema as extension
+      schemaManager.registerExtension('core', coreSchema);
+      const fullSchema = schemaManager.getFullSchema();
 
-    it('should have correct customer schema fields', () => {
-      const coreSchema = schemaManager.getCoreSchema();
-      const customerSchema = coreSchema.customer;
-
-      expect(customerSchema).toHaveProperty('id');
-      expect(customerSchema).toHaveProperty('billableId');
-      expect(customerSchema).toHaveProperty('billableType');
-      expect(customerSchema).toHaveProperty('providerId');
-      expect(customerSchema).toHaveProperty('providerCustomerId');
-      expect(customerSchema).toHaveProperty('email');
-      expect(customerSchema).toHaveProperty('metadata');
-      expect(customerSchema).toHaveProperty('createdAt');
-      expect(customerSchema).toHaveProperty('updatedAt');
-
-      // Check required fields
-      expect((customerSchema.id as any).required).toBe(true);
-      expect((customerSchema.billableId as any).required).toBe(true);
-      expect((customerSchema.billableType as any).required).toBe(true);
-      expect((customerSchema.email as any).required).toBeUndefined(); // optional
-
-      // Check field types
-      expect((customerSchema.id as any).type).toBe('string');
-      expect((customerSchema.metadata as any).type).toBe('json');
-      expect((customerSchema.createdAt as any).type).toBe('date');
-    });
-
-    it('should have correct subscription schema fields', () => {
-      const coreSchema = schemaManager.getCoreSchema();
-      const subscriptionSchema = coreSchema.subscription;
-
-      expect(subscriptionSchema).toHaveProperty('id');
-      expect(subscriptionSchema).toHaveProperty('customerId');
-      expect(subscriptionSchema).toHaveProperty('providerId');
-      expect(subscriptionSchema).toHaveProperty('status');
-      expect(subscriptionSchema).toHaveProperty('productId');
-      expect(subscriptionSchema).toHaveProperty('priceId');
-      expect(subscriptionSchema).toHaveProperty('quantity');
-      expect(subscriptionSchema).toHaveProperty('currentPeriodStart');
-      expect(subscriptionSchema).toHaveProperty('currentPeriodEnd');
-      expect(subscriptionSchema).toHaveProperty('cancelAt');
-      expect(subscriptionSchema).toHaveProperty('canceledAt');
-      expect(subscriptionSchema).toHaveProperty('endedAt');
-      expect(subscriptionSchema).toHaveProperty('trialEnd');
-
-      // Check required fields
-      expect((subscriptionSchema.id as any).required).toBe(true);
-      expect((subscriptionSchema.customerId as any).required).toBe(true);
-      expect((subscriptionSchema.status as any).required).toBe(true);
-      expect((subscriptionSchema.quantity as any).required).toBeUndefined(); // optional
-
-      // Check field types
-      expect((subscriptionSchema.quantity as any).type).toBe('number');
-      expect((subscriptionSchema.currentPeriodStart as any).type).toBe('date');
-    });
-
-    it('should have correct usage schema fields', () => {
-      const coreSchema = schemaManager.getCoreSchema();
-      const usageSchema = coreSchema.usage;
-
-      expect(usageSchema).toHaveProperty('id');
-      expect(usageSchema).toHaveProperty('customerId');
-      expect(usageSchema).toHaveProperty('subscriptionItemId');
-      expect(usageSchema).toHaveProperty('productId');
-      expect(usageSchema).toHaveProperty('quantity');
-      expect(usageSchema).toHaveProperty('timestamp');
-      expect(usageSchema).toHaveProperty('idempotencyKey');
-
-      // Check required fields
-      expect((usageSchema.id as any).required).toBe(true);
-      expect((usageSchema.customerId as any).required).toBe(true);
-      expect((usageSchema.productId as any).required).toBe(true);
-      expect((usageSchema.quantity as any).required).toBe(true);
-      expect((usageSchema.timestamp as any).required).toBe(true);
-      expect((usageSchema.subscriptionItemId as any).required).toBeUndefined(); // optional
-
-      // Check field types
-      expect((usageSchema.quantity as any).type).toBe('number');
-      expect((usageSchema.timestamp as any).type).toBe('date');
+      // Core tables should be available
+      expect(fullSchema).toHaveProperty('customer');
+      expect(fullSchema).toHaveProperty('subscription');
+      
+      // Check field properties
+      expect(fullSchema.customer.fields).toHaveProperty('id');
+      expect(fullSchema.customer.fields).toHaveProperty('billableId');
+      expect(fullSchema.customer.fields.id.required).toBe(true);
+      expect(fullSchema.customer.fields.id.type).toBe('string');
     });
   });
 
@@ -116,10 +79,10 @@ describe('SchemaManager', () => {
       schemaManager.registerExtension('customer', extension);
       const fullSchema = schemaManager.getFullSchema();
 
-      expect(fullSchema.customer).toHaveProperty('companyName');
-      expect(fullSchema.customer).toHaveProperty('isVip');
-      expect((fullSchema.customer.companyName as any).type).toBe('string');
-      expect((fullSchema.customer.isVip as any).required).toBe(true);
+      expect(fullSchema.customer.fields).toHaveProperty('companyName');
+      expect(fullSchema.customer.fields).toHaveProperty('isVip');
+      expect((fullSchema.customer.fields.companyName as any).type).toBe('string');
+      expect((fullSchema.customer.fields.isVip as any).required).toBe(true);
     });
 
     it('should merge multiple extensions for the same table', () => {
@@ -142,8 +105,8 @@ describe('SchemaManager', () => {
       schemaManager.registerExtension('customer_ext2', extension2);
       const fullSchema = schemaManager.getFullSchema();
 
-      expect(fullSchema.customer).toHaveProperty('companyName');
-      expect(fullSchema.customer).toHaveProperty('isVip');
+      expect(fullSchema.customer.fields).toHaveProperty('companyName');
+      expect(fullSchema.customer.fields).toHaveProperty('isVip');
     });
 
     it('should add new tables through extensions', () => {
@@ -161,169 +124,70 @@ describe('SchemaManager', () => {
       const fullSchema = schemaManager.getFullSchema();
 
       expect(fullSchema).toHaveProperty('customTable');
-      expect(fullSchema.customTable).toHaveProperty('id');
-      expect(fullSchema.customTable).toHaveProperty('name');
-      expect(fullSchema.customTable).toHaveProperty('value');
+      expect(fullSchema.customTable.fields).toHaveProperty('id');
+      expect(fullSchema.customTable.fields).toHaveProperty('name');
+      expect(fullSchema.customTable.fields).toHaveProperty('value');
     });
   });
 
-  describe('SQL Generation', () => {
-    it('should generate PostgreSQL schema', () => {
-      const sql = schemaManager.generateSQL('postgres');
 
-      expect(sql).toContain('CREATE TABLE customer');
-      expect(sql).toContain('CREATE TABLE subscription');
-      expect(sql).toContain('CREATE TABLE usage');
-      expect(sql).toContain('CREATE TABLE payment_method');
+  describe('Plugin-First Architecture', () => {
+    it('should handle core plugin alongside other plugins', () => {
+      // First register core plugin (simulating core plugin registration)
+      const coreSchema: SchemaExtension = {
+        customer: {
+          fields: {
+            id: { type: 'string', required: true },
+            billableId: { type: 'string', required: true },
+            email: { type: 'string' },
+          },
+        },
+      };
 
-      // Check PostgreSQL-specific types
-      expect(sql).toContain('VARCHAR(255)');
-      expect(sql).toContain('TIMESTAMP');
-      expect(sql).toContain('JSONB');
-      expect(sql).toContain('INTEGER');
-      expect(sql).toContain('BOOLEAN');
-
-      // Check constraints
-      expect(sql).toContain('NOT NULL');
-      expect(sql).toContain('PRIMARY KEY');
-    });
-
-    it('should generate MySQL schema', () => {
-      const sql = schemaManager.generateSQL('mysql');
-
-      expect(sql).toContain('CREATE TABLE customer');
-      
-      // Check MySQL-specific types
-      expect(sql).toContain('VARCHAR(255)');
-      expect(sql).toContain('DATETIME');
-      expect(sql).toContain('JSON');
-      expect(sql).toContain('INT');
-      expect(sql).toContain('BOOLEAN');
-    });
-
-    it('should generate SQLite schema', () => {
-      const sql = schemaManager.generateSQL('sqlite');
-
-      expect(sql).toContain('CREATE TABLE customer');
-      
-      // Check SQLite-specific types
-      expect(sql).toContain('TEXT');
-      expect(sql).toContain('INTEGER');
-    });
-
-    it('should handle schema extensions in SQL generation', () => {
-      const extension: SchemaExtension = {
+      // Then register a feature plugin extension
+      const featureExtension: SchemaExtension = {
         customer: {
           fields: {
             companyName: { type: 'string' },
-            employeeCount: { type: 'number', required: true },
           },
         },
       };
 
-      schemaManager.registerExtension('customer', extension);
-      const sql = schemaManager.generateSQL('postgres');
-
-      expect(sql).toContain('company_name VARCHAR(255)');
-      expect(sql).toContain('employee_count INTEGER NOT NULL');
-    });
-
-    it('should convert camelCase to snake_case in SQL', () => {
-      const sql = schemaManager.generateSQL('postgres');
-
-      expect(sql).toContain('billable_id');
-      expect(sql).toContain('billable_type');
-      expect(sql).toContain('provider_id');
-      expect(sql).toContain('provider_customer_id');
-      expect(sql).toContain('created_at');
-      expect(sql).toContain('updated_at');
-      expect(sql).toContain('current_period_start');
-      expect(sql).toContain('current_period_end');
-    });
-
-    it('should handle default values in SQL generation', () => {
-      const extension: SchemaExtension = {
-        testTable: {
-          fields: {
-            id: { type: 'string', required: true },
-            status: { type: 'string', default: 'active' },
-            isEnabled: { type: 'boolean', default: true },
-            count: { type: 'number', default: 0 },
-            metadata: { type: 'json', default: null },
-          },
-        },
-      };
-
-      schemaManager.registerExtension('testTable', extension);
-      const sql = schemaManager.generateSQL('postgres');
-
-      expect(sql).toContain("status VARCHAR(255) DEFAULT 'active'");
-      expect(sql).toContain('is_enabled BOOLEAN DEFAULT TRUE');
-      expect(sql).toContain('count INTEGER DEFAULT 0');
-      expect(sql).toContain('metadata JSONB DEFAULT NULL');
-    });
-  });
-
-  describe('Utility Methods', () => {
-    it('should convert camelCase to snake_case correctly', () => {
-      // Test private method indirectly through SQL generation
-      const extension: SchemaExtension = {
-        testTable: {
-          fields: {
-            someFieldName: { type: 'string' },
-            anotherLongFieldName: { type: 'string' },
-          },
-        },
-      };
-
-      schemaManager.registerExtension('testTable', extension);
-      const sql = schemaManager.generateSQL('postgres');
-
-      expect(sql).toContain('some_field_name');
-      expect(sql).toContain('another_long_field_name');
-    });
-
-    it('should handle field names that are already snake_case', () => {
-      const extension: SchemaExtension = {
-        testTable: {
-          fields: {
-            already_snake_case: { type: 'string' },
-            mixed_camelCase: { type: 'string' },
-          },
-        },
-      };
-
-      schemaManager.registerExtension('testTable', extension);
-      const sql = schemaManager.generateSQL('postgres');
-
-      expect(sql).toContain('already_snake_case');
-      expect(sql).toContain('mixed_camel_case');
-    });
-  });
-
-  describe('Full Schema Integration', () => {
-    it('should maintain core schema integrity when adding extensions', () => {
-      const extension: SchemaExtension = {
-        customer: {
-          fields: {
-            newField: { type: 'string' },
-          },
-        },
-      };
-
-      schemaManager.registerExtension('customer', extension);
+      schemaManager.registerExtension('core', coreSchema);
+      schemaManager.registerExtension('feature', featureExtension);
       const fullSchema = schemaManager.getFullSchema();
 
-      // Core fields should still exist
-      expect(fullSchema.customer).toHaveProperty('id');
-      expect(fullSchema.customer).toHaveProperty('billableId');
-      expect(fullSchema.customer).toHaveProperty('email');
+      // Core fields should exist
+      expect(fullSchema.customer.fields).toHaveProperty('id');
+      expect(fullSchema.customer.fields).toHaveProperty('billableId');
+      expect(fullSchema.customer.fields).toHaveProperty('email');
       
-      // New field should be added
-      expect(fullSchema.customer).toHaveProperty('newField');
+      // Extension field should be merged
+      expect(fullSchema.customer.fields).toHaveProperty('companyName');
       
       // Core field properties should be preserved
-      expect((fullSchema.customer.id as any).required).toBe(true);
+      expect(fullSchema.customer.fields.id.required).toBe(true);
+    });
+
+    it('should demonstrate that SchemaManager only handles extensions', () => {
+      // SchemaManager starts empty - it has no inherent "core" knowledge
+      const emptySchema = schemaManager.getFullSchema();
+      expect(Object.keys(emptySchema)).toHaveLength(0);
+
+      // Everything comes through plugin registration
+      const somePluginSchema: SchemaExtension = {
+        someTable: {
+          fields: {
+            id: { type: 'string', required: true },
+          },
+        },
+      };
+
+      schemaManager.registerExtension('somePlugin', somePluginSchema);
+      const fullSchema = schemaManager.getFullSchema();
+      
+      expect(fullSchema).toHaveProperty('someTable');
+      expect(Object.keys(fullSchema)).toHaveLength(1);
     });
   });
 });

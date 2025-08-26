@@ -1,0 +1,66 @@
+---
+alwaysApply: true
+---
+
+## IMPORTANT
+- We use pnpm and pnpm workspaces
+- Always check PLAN.md
+- If you find something interesting and learn a new thing (either through the prompt or by checking the existing code), you must update PLAN.md
+
+## Progress Tracking Rules
+
+### 1. Always Update TRACKER.md
+- **MUST** update `TRACKER.md` after completing any significant task or feature
+- Include specific details about what was implemented
+- Mark completion status clearly with ✅
+- Update the "Last Updated" date and phase information
+
+### 2. Todo List Management
+- Use the TodoWrite tool to track work in progress
+- Mark todos as `in_progress` when starting work
+- Mark todos as `completed` immediately after finishing
+- Only have ONE todo `in_progress` at a time
+- Add new todos when discovering additional work needed
+
+### 3. Documentation Standards
+- Update relevant example files (like `STRIPE_EXAMPLE.md`) when APIs change
+- Include migration notes when changing existing APIs
+- Document breaking changes clearly
+- Provide clear usage examples for new features
+
+### 4. Build Verification
+- **ALWAYS** run builds after making changes to verify everything works
+- Test both individual package builds and full monorepo builds
+- Ensure TypeScript errors are resolved before considering work complete
+- Clean up any diagnostic errors or test files that cause issues
+
+### 5. API Modernization
+- Keep up with latest provider APIs (like Stripe's Meter Events vs Usage Records)
+- Maintain backward compatibility when possible
+- Add deprecation warnings for legacy approaches
+- Update type definitions to match new APIs
+
+### 6. Type Safety
+- Use proper TypeScript types instead of `any` whenever possible
+- Add dev dependencies for type definitions when needed
+- Externalize dependencies in build configs to prevent bundling conflicts
+- Maintain interface compatibility for major changes
+
+### 7. Independent Plugin Architecture
+- **Core plugin is mandatory**: Always include the core plugin which provides essential schema and core billing methods (no providers)
+- **Independent provider plugins**: Use separate plugins for payment providers (e.g., Stripe plugin receives Stripe instance)
+- **Plugin modularity**: Each plugin can define schema, methods, providers, endpoints, and hooks independently
+- **Schema customization**: Support table name mapping and field name mapping for existing database schemas
+
+## Current Status
+- **Phase**: 2 of 8 ✅ COMPLETED
+- **Next Phase**: Phase 3 - Full Subscription Management
+- **Last Updated**: 2025-08-24
+
+## Key Accomplishments This Session
+- ✅ Implemented independent plugin architecture
+- ✅ Created separate Stripe plugin that receives Stripe instance as option
+- ✅ Removed provider dependency from core plugin (now schema + methods only)
+- ✅ Added schema table and field name mapping capabilities to BetterBillingOptions
+- ✅ Enhanced plugin system for better modularity and customization
+- ✅ Updated documentation to reflect new plugin-first architecture

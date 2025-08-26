@@ -1,7 +1,7 @@
 // Better Auth inspired adapter types
-export interface Where {
+export interface Where<T = any> {
   field: string;
-  value: any;
+  value: T;
   operator?:
     | 'eq'
     | 'ne'
@@ -30,10 +30,10 @@ export interface DatabaseAdapter {
 
   // Core database operations (current simplified format)
   create: <T>(model: string, data: Partial<T>) => Promise<T>;
-  update: <T>(model: string, where: any, data: Partial<T>) => Promise<T>;
-  findOne: <T>(model: string, where: any) => Promise<T | null>;
-  findMany: <T>(model: string, where?: any) => Promise<T[]>;
-  delete: (model: string, where: any) => Promise<void>;
+  update: <T>(model: string, where: WhereMaybeArray, data: Partial<T>) => Promise<T>;
+  findOne: <T>(model: string, where: WhereMaybeArray) => Promise<T | null>;
+  findMany: <T>(model: string, where?: WhereMaybeArray) => Promise<T[]>;
+  delete: (model: string, where: WhereMaybeArray) => Promise<void>;
 
   // Transaction support
   transaction?: <T>(fn: (tx: any) => Promise<T>) => Promise<T>;
