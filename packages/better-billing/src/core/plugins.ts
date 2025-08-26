@@ -1,12 +1,17 @@
+import type { Endpoint } from 'better-call';
 import type { BillingPlugin, PaymentProvider } from '../types';
 import type { HookManager } from './hooks';
+import type { SchemaManager } from './schema';
 
 export class PluginManager {
   private plugins: Map<string, BillingPlugin> = new Map();
+  private providers: Map<string, PaymentProvider> = new Map();
   private hookManager: HookManager;
+  private schemaManager?: SchemaManager;
 
-  constructor(hookManager: HookManager) {
+  constructor(hookManager: HookManager, schemaManager?: SchemaManager) {
     this.hookManager = hookManager;
+    this.schemaManager = schemaManager;
   }
 
   // Register a plugin
@@ -22,8 +27,19 @@ export class PluginManager {
       this.hookManager.registerMany(plugin.hooks);
     }
 
-    // TODO: Register schema extensions
-    // TODO: Register API endpoints
+    // Register schema extensions
+    if (plugin.schema && this.schemaManager) {
+      this.schemaManager.registerExtension(plugin.id, plugin.schema);
+    }
+
+    // Register payment providers
+    if (plugin.providers) {
+      Object.entries(plugin.providers).forEach(([id, provider]) => {
+        this.providers.set(id, provider);
+      });
+    }
+
+    // API endpoints will be registered by the router
   }
 
   // Get a plugin by ID
@@ -36,19 +52,6 @@ export class PluginManager {
     return Array.from(this.plugins.values());
   }
 
-  // Extend a payment provider with all plugin extensions
-  extendProvider(provider: PaymentProvider): PaymentProvider {
-    let extended = provider;
-
-    this.plugins.forEach((plugin) => {
-      if (plugin.extendProvider) {
-        extended = plugin.extendProvider(extended);
-      }
-    });
-
-    return extended;
-  }
-
   // Check if a plugin is registered
   has(id: string): boolean {
     return this.plugins.has(id);
@@ -59,9 +62,29 @@ export class PluginManager {
     return this.plugins.delete(id);
   }
 
+  // Get a payment provider by ID
+  getProvider(id: string): PaymentProvider | undefined {
+    return this.providers.get(id);
+  }
+
+  // Get all available providers
+  getAllProviders(): Map<string, PaymentProvider> {
+    return this.providers;
+  }
+
+  getHookManager() {
+    return this.hookManager;
+  }
+
+  getSchemaManager() {
+    return this.schemaManager;
+  }
+
   // Get plugin API endpoints
-  getEndpoints(): Record<string, any> {
-    const endpoints: Record<string, any> = {};
+  getEndpoints() {
+    const endpoints: {
+      [key: string]: Endpoint;
+    } = {};
 
     this.plugins.forEach((plugin) => {
       if (plugin.endpoints) {

@@ -1,28 +1,12 @@
-import type { BillingCore } from '../core/billing';
+import type { BetterBilling } from '../types';
 
 /**
  * Solid Start handler adapter for Better Billing
  * Converts Better Call router handler to Solid Start format
  */
-export function toSolidStartHandler(
-  billing:
-    | BillingCore
-    | {
-        handler: (request: Request) => Promise<Response>;
-      }
-    | ((request: Request) => Promise<Response>)
-) {
+export function toSolidStartHandler(billing: BetterBilling) {
   const handler = async (event: { request: Request }) => {
-    if (billing instanceof Object && 'api' in billing) {
-      // BillingCore instance
-      return (billing as BillingCore).api.router.handler(event.request);
-    } else if ('handler' in billing) {
-      // Handler object
-      return billing.handler(event.request);
-    } else {
-      // Raw handler function
-      return billing(event.request);
-    }
+    return billing.api.handler(event.request);
   };
 
   return {

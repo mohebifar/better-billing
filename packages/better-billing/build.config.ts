@@ -3,18 +3,18 @@ import { defineBuildConfig } from "unbuild";
 export default defineBuildConfig({
   entries: [
     "./src/index",
-    "./src/client/index",
     // DB Adapters
     "./src/adapters/drizzle",
     "./src/adapters/prisma",
-    // Payment Providers (isolated modules)
-    "./src/providers/stripe/index",
     // Integrations
     "./src/integrations/next-js",
     "./src/integrations/node",
     "./src/integrations/react-start",
     "./src/integrations/solid-start",
     "./src/integrations/svelte-kit",
+    // Plugins
+    "./src/plugins/usage-metering",
+    "./src/plugins/stripe-plugin",
   ],
   declaration: true,
   clean: true,

@@ -4,22 +4,9 @@ import path from 'node:path';
 import babelPresetReact from '@babel/preset-react';
 // @ts-expect-error
 import babelPresetTypeScript from '@babel/preset-typescript';
+import type { BetterBillingOptions } from 'better-billing';
 import { loadConfig } from 'c12';
 import type { JITIOptions } from 'jiti';
-
-// Type definition for Better Billing options
-interface BetterBillingOptions {
-  database: any;
-  provider?: any;
-  billable?: {
-    model: string;
-    fields?: Record<string, any>;
-  };
-  products?: Record<string, any>;
-  webhooks?: any;
-  plugins?: any[];
-  advanced?: any;
-}
 
 let possiblePaths = [
   'billing.ts',

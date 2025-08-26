@@ -84,13 +84,18 @@ beforeAll(async () => {
     CREATE TABLE IF NOT EXISTS usage (
       id VARCHAR(255) PRIMARY KEY,
       customer_id VARCHAR(255) NOT NULL,
+      subscription_id VARCHAR(255),
+      metric_name VARCHAR(255) NOT NULL,
       subscription_item_id VARCHAR(255),
       product_id VARCHAR(255) NOT NULL,
       quantity INTEGER NOT NULL,
       timestamp TIMESTAMP NOT NULL,
       metadata JSONB,
       idempotency_key VARCHAR(255),
+      created_at TIMESTAMP NOT NULL,
+      updated_at TIMESTAMP NOT NULL,
       FOREIGN KEY (customer_id) REFERENCES customer(id),
+      FOREIGN KEY (subscription_id) REFERENCES subscription(id),
       FOREIGN KEY (subscription_item_id) REFERENCES subscription_item(id)
     );
 

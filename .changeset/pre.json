@@ -1,0 +1,10 @@
+{
+  "mode": "pre",
+  "tag": "alpha",
+  "initialVersions": {
+    "better-billing-docs": "0.0.0",
+    "better-billing": "0.1.0",
+    "@better-billing/cli": "0.1.0"
+  },
+  "changesets": []
+}

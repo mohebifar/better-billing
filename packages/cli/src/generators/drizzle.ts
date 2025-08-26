@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import type { BetterBilling } from 'better-billing';
 import type { SchemaGenerator } from './types';
 
 export const generateDrizzleSchema: SchemaGenerator = async ({ options, file, adapter }) => {
@@ -32,89 +33,8 @@ export const generateDrizzleSchema: SchemaGenerator = async ({ options, file, ad
   };
 };
 
-function getSchemaFromOptions(_options: any) {
-  // This would normally get schema from the billing instance
-  // For now, return the core schema
-  return getCoreSchema();
-}
-
-function getCoreSchema() {
-  return {
-    customer: {
-      id: { type: 'string', required: true },
-      billableId: { type: 'string', required: true },
-      billableType: { type: 'string', required: true },
-      providerId: { type: 'string', required: true },
-      providerCustomerId: { type: 'string', required: true },
-      email: { type: 'string' },
-      metadata: { type: 'json' },
-      createdAt: { type: 'date', required: true },
-      updatedAt: { type: 'date', required: true },
-    },
-    subscription: {
-      id: { type: 'string', required: true },
-      customerId: { type: 'string', required: true },
-      providerId: { type: 'string', required: true },
-      providerSubscriptionId: { type: 'string', required: true },
-      status: { type: 'string', required: true },
-      productId: { type: 'string', required: true },
-      priceId: { type: 'string', required: true },
-      quantity: { type: 'number' },
-      currentPeriodStart: { type: 'date', required: true },
-      currentPeriodEnd: { type: 'date', required: true },
-      cancelAt: { type: 'date' },
-      canceledAt: { type: 'date' },
-      endedAt: { type: 'date' },
-      trialEnd: { type: 'date' },
-      metadata: { type: 'json' },
-      createdAt: { type: 'date', required: true },
-      updatedAt: { type: 'date', required: true },
-    },
-    subscriptionItem: {
-      id: { type: 'string', required: true },
-      subscriptionId: { type: 'string', required: true },
-      productId: { type: 'string', required: true },
-      priceId: { type: 'string', required: true },
-      quantity: { type: 'number', required: true },
-      metadata: { type: 'json' },
-    },
-    invoice: {
-      id: { type: 'string', required: true },
-      customerId: { type: 'string', required: true },
-      subscriptionId: { type: 'string' },
-      providerId: { type: 'string', required: true },
-      providerInvoiceId: { type: 'string', required: true },
-      number: { type: 'string', required: true },
-      status: { type: 'string', required: true },
-      amount: { type: 'number', required: true },
-      currency: { type: 'string', required: true },
-      paidAt: { type: 'date' },
-      dueDate: { type: 'date' },
-      metadata: { type: 'json' },
-      createdAt: { type: 'date', required: true },
-    },
-    usage: {
-      id: { type: 'string', required: true },
-      customerId: { type: 'string', required: true },
-      subscriptionItemId: { type: 'string' },
-      productId: { type: 'string', required: true },
-      quantity: { type: 'number', required: true },
-      timestamp: { type: 'date', required: true },
-      metadata: { type: 'json' },
-      idempotencyKey: { type: 'string' },
-    },
-    paymentMethod: {
-      id: { type: 'string', required: true },
-      customerId: { type: 'string', required: true },
-      providerId: { type: 'string', required: true },
-      providerPaymentMethodId: { type: 'string', required: true },
-      type: { type: 'string', required: true },
-      last4: { type: 'string' },
-      brand: { type: 'string' },
-      isDefault: { type: 'boolean', required: true },
-      metadata: { type: 'json' },
-    },
-  };
+function getSchemaFromOptions(billing: BetterBilling) {
+  return billing.getSchema();
 }
 
 function generateImports({ databaseType, schema }: { databaseType: string; schema: any }) {

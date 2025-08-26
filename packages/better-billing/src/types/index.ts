@@ -1,24 +1,95 @@
+import type { Endpoint, UnionToIntersection } from 'better-call';
 import type { DatabaseAdapter } from '../adapters/types';
+import type { CorePlugin } from '../plugins/core-plugin';
+import type {
+  AdvancedOptions,
+  CancelContext,
+  CancelledContext,
+  CancelOptions,
+  CheckoutCallbackContext,
+  CheckoutCallbackResponse,
+  CheckoutCancelRequest,
+  CheckoutSession,
+  CheckoutSuccessRequest,
+  CreateCheckoutSessionData,
+  CreateCustomerData,
+  CreateSubscriptionData,
+  Customer,
+  CustomerContext,
+  CustomerCreateContext,
+  InvoiceContext,
+  PaymentFailedContext,
+  PaymentMethod,
+  PortalSession,
+  ProductConfiguration,
+  SubscribeContext,
+  Subscription,
+  SubscriptionContext,
+  SubscriptionPlan,
+  UpdateCustomerData,
+  UpdateSubscriptionData,
+  UsageContext,
+  UsageRecordContext,
+  WebhookConfiguration,
+} from './core-api-types';
 
-// Core billing instance
-export interface BetterBilling {
-  api: any; // Better Call router with endpoints
-  handler: (request: Request) => Promise<Response>;
-  $Infer: InferredTypes;
+export type { DatabaseAdapter };
+
+// Re-export new subscription plan types
+export type {
+  SubscriptionPlan,
+  CreateCheckoutSessionData,
+  CheckoutCallbackContext,
+  CheckoutCallbackResponse,
+  CheckoutSuccessRequest,
+  CheckoutCancelRequest,
+};
+
+// Schema types first
+export interface SchemaExtension {
+  [tableName: string]: {
+    fields: Record<string, FieldDefinition>;
+  };
 }
 
-// Main configuration
-export interface BetterBillingOptions {
-  database: DatabaseAdapter;
-  provider?: PaymentProvider;
-  billable?: {
-    model: 'user' | 'organization' | 'team' | string;
-    fields?: FieldMapping;
+export type FieldType = 'string' | 'number' | 'boolean' | 'date' | 'json';
+
+export type InferFieldType<T> = T extends 'string'
+  ? string
+  : T extends 'number'
+    ? number
+    : T extends 'boolean'
+      ? boolean
+      : T extends 'date'
+        ? Date
+        : T extends 'json'
+          ? Record<string, any>
+          : never;
+
+export interface FieldDefinition<T extends FieldType = FieldType, R extends boolean = boolean> {
+  type: T;
+  required?: R;
+  default?: InferFieldType<T>;
+}
+
+export type InferSchemaType<T extends SchemaExtension> = {
+  [K in keyof T]: {
+    [K2 in keyof T[K]]: T[K][K2] extends FieldDefinition<infer FTypeName, infer FRequired>
+      ? FRequired extends true
+        ? InferFieldType<FTypeName>
+        : InferFieldType<FTypeName> | undefined
+      : never;
   };
-  products?: ProductConfiguration;
-  webhooks?: WebhookConfiguration;
-  plugins?: BillingPlugin[];
-  advanced?: AdvancedOptions;
+};
+
+// Schema mapping interface
+export interface SchemaMapping {
+  [modelName: string]: {
+    modelName?: string; // Custom model name
+    fields?: {
+      [fieldName: string]: string; // fieldName -> custom column name
+    };
+  };
 }
 
 // Payment Provider Interface
@@ -38,19 +109,8 @@ export interface PaymentProvider {
   resumeSubscription(id: string): Promise<Subscription>;
 
   // Checkout/portal operations
-  createCheckoutSession(data: CheckoutSessionData): Promise<CheckoutSession>;
+  createCheckoutSession(data: CreateCheckoutSessionData): Promise<CheckoutSession>;
   createPortalSession(customerId: string): Promise<PortalSession>;
-
-  // Usage operations
-  reportUsage(
-    subscriptionItemId: string,
-    quantity: number,
-    options?: UsageOptions
-  ): Promise<UsageRecord>;
-
-  // Webhook handling
-  constructWebhookEvent(payload: string, signature: string): WebhookEvent;
-  handleWebhook(event: WebhookEvent): Promise<void>;
 
   // Payment methods
   attachPaymentMethod(customerId: string, paymentMethodId: string): Promise<PaymentMethod>;
@@ -58,352 +118,7 @@ export interface PaymentProvider {
   setDefaultPaymentMethod(customerId: string, paymentMethodId: string): Promise<void>;
 }
 
-// Core Data Types
-export interface Customer {
-  id: string;
-  billableId: string;
-  billableType: string;
-  providerId: string;
-  providerCustomerId: string;
-  email?: string;
-  metadata?: Record<string, any>;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface Subscription {
-  id: string;
-  customerId: string;
-  providerId: string;
-  providerSubscriptionId: string;
-  status: SubscriptionStatus;
-  productId: string;
-  priceId: string;
-  quantity?: number;
-  currentPeriodStart: Date;
-  currentPeriodEnd: Date;
-  cancelAt?: Date;
-  canceledAt?: Date;
-  endedAt?: Date;
-  trialEnd?: Date;
-  metadata?: Record<string, any>;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export type SubscriptionStatus =
-  | 'trialing'
-  | 'active'
-  | 'canceled'
-  | 'incomplete'
-  | 'incomplete_expired'
-  | 'past_due'
-  | 'unpaid'
-  | 'paused';
-
-export interface SubscriptionItem {
-  id: string;
-  subscriptionId: string;
-  productId: string;
-  priceId: string;
-  quantity: number;
-  metadata?: Record<string, any>;
-}
-
-export interface Invoice {
-  id: string;
-  customerId: string;
-  subscriptionId?: string;
-  providerId: string;
-  providerInvoiceId: string;
-  number: string;
-  status: InvoiceStatus;
-  amount: number;
-  currency: string;
-  paidAt?: Date;
-  dueDate?: Date;
-  metadata?: Record<string, any>;
-  createdAt: Date;
-}
-
-export type InvoiceStatus = 'draft' | 'open' | 'paid' | 'uncollectible' | 'void';
-
-export interface Usage {
-  id: string;
-  customerId: string;
-  subscriptionItemId?: string;
-  productId: string;
-  quantity: number;
-  timestamp: Date;
-  metadata?: Record<string, any>;
-  idempotencyKey?: string;
-}
-
-export interface PaymentMethod {
-  id: string;
-  customerId: string;
-  providerId: string;
-  providerPaymentMethodId: string;
-  type: string;
-  last4?: string;
-  brand?: string;
-  isDefault: boolean;
-  metadata?: Record<string, any>;
-}
-
-// API Types
-export interface BillingAPI {
-  // Customer management
-  createCustomer: APIEndpoint<CreateCustomerRequest, Customer>;
-  getCustomer: APIEndpoint<GetCustomerRequest, Customer>;
-  updateCustomer: APIEndpoint<UpdateCustomerRequest, Customer>;
-
-  // Subscription management
-  subscribe: APIEndpoint<SubscribeRequest, Subscription>;
-  updateSubscription: APIEndpoint<UpdateSubscriptionRequest, Subscription>;
-  cancelSubscription: APIEndpoint<CancelSubscriptionRequest, Subscription>;
-  resumeSubscription: APIEndpoint<ResumeSubscriptionRequest, Subscription>;
-  getSubscriptions: APIEndpoint<GetSubscriptionsRequest, Subscription[]>;
-
-  // Checkout & portal
-  createCheckout: APIEndpoint<CreateCheckoutRequest, CheckoutSession>;
-  createPortal: APIEndpoint<CreatePortalRequest, PortalSession>;
-
-  // Usage tracking
-  reportUsage: APIEndpoint<ReportUsageRequest, UsageRecord>;
-  getUsage: APIEndpoint<GetUsageRequest, UsageRecord[]>;
-
-  // Invoices
-  getInvoices: APIEndpoint<GetInvoicesRequest, Invoice[]>;
-  downloadInvoice: APIEndpoint<DownloadInvoiceRequest, InvoiceDownload>;
-
-  // Payment methods
-  addPaymentMethod: APIEndpoint<AddPaymentMethodRequest, PaymentMethod>;
-  removePaymentMethod: APIEndpoint<RemovePaymentMethodRequest, void>;
-  setDefaultPaymentMethod: APIEndpoint<SetDefaultPaymentMethodRequest, PaymentMethod>;
-  getPaymentMethods: APIEndpoint<GetPaymentMethodsRequest, PaymentMethod[]>;
-
-  // Webhooks
-  handleWebhook: APIEndpoint<WebhookRequest, WebhookResponse>;
-}
-
-// Helper Types
-export type APIEndpoint<TRequest = any, TResponse = any> = (
-  request: TRequest
-) => Promise<TResponse>;
-
-export interface CreateCustomerData {
-  billableId: string;
-  billableType: string;
-  email?: string;
-  name?: string;
-  metadata?: Record<string, any>;
-}
-
-export interface UpdateCustomerData {
-  email?: string;
-  name?: string;
-  metadata?: Record<string, any>;
-}
-
-export interface CreateSubscriptionData {
-  customerId: string;
-  items: Array<{
-    priceId: string;
-    quantity?: number;
-  }>;
-  trialDays?: number;
-  metadata?: Record<string, any>;
-}
-
-export interface UpdateSubscriptionData {
-  items?: Array<{
-    priceId: string;
-    quantity?: number;
-  }>;
-  metadata?: Record<string, any>;
-}
-
-export interface CancelOptions {
-  immediately?: boolean;
-  atPeriodEnd?: boolean;
-}
-
-export interface CheckoutSessionData {
-  customerId: string;
-  priceId: string;
-  quantity?: number;
-  successUrl: string;
-  cancelUrl: string;
-  metadata?: Record<string, any>;
-}
-
-export interface CheckoutSession {
-  id: string;
-  url: string;
-  expiresAt: Date;
-}
-
-export interface PortalSession {
-  id: string;
-  url: string;
-}
-
-export interface UsageOptions {
-  timestamp?: Date;
-  idempotencyKey?: string;
-  // For Stripe Meter Events API
-  eventName?: string;
-  customerId?: string;
-}
-
-export interface UsageRecord {
-  id: string;
-  quantity: number;
-  timestamp: Date;
-}
-
-export interface WebhookEvent {
-  id: string;
-  type: string;
-  data: any;
-  timestamp: Date;
-}
-
-// Request/Response Types
-export interface CreateCustomerRequest {
-  billableId: string;
-  billableType?: string;
-  email?: string;
-  name?: string;
-}
-
-export interface GetCustomerRequest {
-  customerId?: string;
-  billableId?: string;
-}
-
-export interface UpdateCustomerRequest {
-  customerId: string;
-  email?: string;
-  name?: string;
-  metadata?: Record<string, any>;
-}
-
-export interface SubscribeRequest {
-  customerId: string;
-  priceId: string;
-  quantity?: number;
-  trialDays?: number;
-}
-
-export interface UpdateSubscriptionRequest {
-  subscriptionId: string;
-  priceId?: string;
-  quantity?: number;
-}
-
-export interface CancelSubscriptionRequest {
-  subscriptionId: string;
-  immediately?: boolean;
-}
-
-export interface ResumeSubscriptionRequest {
-  subscriptionId: string;
-}
-
-export interface GetSubscriptionsRequest {
-  customerId: string;
-  status?: SubscriptionStatus;
-}
-
-export interface CreateCheckoutRequest {
-  customerId: string;
-  priceId: string;
-  quantity?: number;
-  successUrl: string;
-  cancelUrl: string;
-}
-
-export interface CreatePortalRequest {
-  customerId: string;
-  returnUrl?: string;
-}
-
-export interface ReportUsageRequest {
-  subscriptionItemId: string;
-  quantity: number;
-  timestamp?: Date;
-  idempotencyKey?: string;
-}
-
-export interface GetUsageRequest {
-  subscriptionItemId: string;
-  startDate?: Date;
-  endDate?: Date;
-}
-
-export interface GetInvoicesRequest {
-  customerId: string;
-  status?: InvoiceStatus;
-  limit?: number;
-}
-
-export interface DownloadInvoiceRequest {
-  invoiceId: string;
-}
-
-export interface InvoiceDownload {
-  url: string;
-  contentType: string;
-}
-
-export interface AddPaymentMethodRequest {
-  customerId: string;
-  paymentMethodId: string;
-  setDefault?: boolean;
-}
-
-export interface RemovePaymentMethodRequest {
-  paymentMethodId: string;
-}
-
-export interface SetDefaultPaymentMethodRequest {
-  customerId: string;
-  paymentMethodId: string;
-}
-
-export interface GetPaymentMethodsRequest {
-  customerId: string;
-}
-
-export interface WebhookRequest {
-  body: string;
-  signature: string;
-}
-
-export interface WebhookResponse {
-  success: boolean;
-  message?: string;
-}
-
-// Plugin Types
-export interface BillingPlugin {
-  id: string;
-
-  // Schema extensions
-  schema?: SchemaExtension;
-
-  // API extensions
-  endpoints?: Record<string, APIEndpoint>;
-
-  // Hooks
-  hooks?: BillingHooks;
-
-  // Provider extensions
-  extendProvider?: (provider: PaymentProvider) => PaymentProvider;
-}
-
+// Hooks
 export interface BillingHooks {
   // Customer hooks
   beforeCustomerCreate?: Hook<CustomerCreateContext>;
@@ -414,105 +129,116 @@ export interface BillingHooks {
   afterSubscribe?: Hook<SubscriptionContext>;
   beforeCancel?: Hook<CancelContext>;
   afterCancel?: Hook<CancelledContext>;
+
+  // Usage hooks
+  beforeRecordUsage?: Hook<UsageRecordContext>;
+  afterRecordUsage?: Hook<UsageRecordContext>;
   onUsageReported?: Hook<UsageContext>;
+
+  // Invoice/Payment hooks
   onInvoicePaid?: Hook<InvoiceContext>;
   onPaymentFailed?: Hook<PaymentFailedContext>;
 }
 
 export type Hook<T> = (context: T) => Promise<void> | void;
 
-// Context Types for Hooks
-export interface CustomerCreateContext {
-  data: Partial<Customer>;
+// Plugin Types
+export interface BillingPlugin<
+  ID extends string = string,
+  TMethods extends Record<string, any> = Record<string, any>,
+  TProviders extends Record<string, PaymentProvider> = Record<string, PaymentProvider>,
+  TSchema extends SchemaExtension = SchemaExtension,
+> {
+  id: ID;
+
+  // Schema extensions (tables this plugin needs)
+  schema?: TSchema;
+
+  // Methods to add to the billing object
+  methods?: TMethods;
+
+  // Hooks for lifecycle events
+  hooks?: BillingHooks;
+
+  // API endpoints this plugin provides
+  endpoints?: Record<string, Endpoint>;
+
+  providers?: TProviders;
 }
 
-export interface CustomerContext {
-  customer: Customer;
+export type BillingPluginFactory<T extends BillingPlugin> = (ref: BetterBillingRef) => T;
+
+export type ExtractPluginFromFactory<T extends BillingPluginFactory<BillingPlugin>> = T extends (
+  billing: BetterBilling
+) => infer P
+  ? P
+  : never;
+
+export type ExtractPluginsFromFactoryArray<
+  P extends readonly BillingPluginFactory<BillingPlugin>[] | undefined,
+> = P extends Array<infer T>
+  ? Array<T extends BillingPluginFactory<infer P> ? (P extends BillingPlugin ? P : never) : never>
+  : [];
+
+export type InferPluginMethods<P extends readonly BillingPlugin[]> = UnionToIntersection<
+  P extends ReadonlyArray<infer T>
+    ? T extends BillingPlugin<infer ID, infer Methods>
+      ? { [K in ID]: Methods }
+      : never
+    : never
+>;
+
+export type ExtractPluginPaymentProviders<P extends readonly BillingPlugin[]> = {
+  [K in keyof P]: P[K] extends BillingPlugin<any, any, infer Providers> ? keyof Providers : never;
+}[number];
+
+type BasePlugins = [CorePlugin];
+
+export type WithBasePlugins<T extends readonly BillingPluginFactory<BillingPlugin>[]> = [
+  ...BasePlugins,
+  ...ExtractPluginsFromFactoryArray<T>,
+];
+
+export interface BetterBillingOptions<
+  TDatabaseAdapter extends DatabaseAdapter = DatabaseAdapter,
+  TPluginFactories extends
+    readonly BillingPluginFactory<BillingPlugin>[] = readonly BillingPluginFactory<BillingPlugin>[],
+  TAllPlugins extends readonly BillingPlugin[] = WithBasePlugins<TPluginFactories>,
+  TProviders extends
+    ExtractPluginPaymentProviders<TAllPlugins> = ExtractPluginPaymentProviders<TAllPlugins>,
+> {
+  database: TDatabaseAdapter;
+  provider: TProviders;
+  billables?: Array<{
+    model: string;
+  }>;
+  products?: ProductConfiguration;
+  webhooks?: WebhookConfiguration;
+  plugins: TPluginFactories;
+
+  // NEW: Subscription plan configuration
+  plans?: Record<string, SubscriptionPlan>;
+
+  schemaMapping?: SchemaMapping;
+
+  advanced?: AdvancedOptions;
 }
 
-export interface SubscribeContext {
-  customer: Customer;
-  priceId: string;
-  quantity?: number;
+// Better Billing Interface
+export interface BetterBilling<
+  TOptions extends BetterBillingOptions<any, any, any, any> = BetterBillingOptions,
+> {
+  config: TOptions;
+  api: { handler: (request: Request) => Promise<Response> };
+  methods: InferPluginMethods<[CorePlugin, ...ExtractPluginsFromFactoryArray<TOptions['plugins']>]>;
+  endpoints: Record<string, Endpoint>;
+  getProvider(): PaymentProvider;
 }
 
-export interface SubscriptionContext {
-  subscription: Subscription;
-  customer: Customer;
-}
+export type BetterBillingRef = {
+  current: BetterBilling;
+};
 
-export interface CancelContext {
-  subscription: Subscription;
-  customer: Customer;
-  reason?: string;
-}
-
-export interface CancelledContext {
-  subscription: Subscription;
-  customer: Customer;
-}
-
-export interface UsageContext {
-  usage: Usage;
-  customer: Customer;
-}
-
-export interface InvoiceContext {
-  invoice: Invoice;
-  customer: Customer;
-}
-
-export interface PaymentFailedContext {
-  invoice: Invoice;
-  customer: Customer;
-  error: Error;
-}
-
-// Configuration Types
 export interface FieldMapping {
   [key: string]: string;
-}
-
-export interface ProductConfiguration {
-  [productId: string]: {
-    name: string;
-    description?: string;
-    prices: Array<{
-      id: string;
-      amount: number;
-      currency: string;
-      interval?: 'month' | 'year';
-    }>;
-  };
-}
-
-export interface WebhookConfiguration {
-  endpoint?: string;
-  secret?: string;
-}
-
-export interface AdvancedOptions {
-  debug?: boolean;
-  logLevel?: 'error' | 'warn' | 'info' | 'debug';
-  customModels?: Record<string, any>;
-}
-
-// Type Inference
-export interface InferredTypes {
-  Billable: any;
-  Products: any;
-  Subscription: Subscription;
-  Customer: Customer;
-}
-
-export interface SchemaExtension {
-  [tableName: string]: {
-    fields: Record<string, FieldDefinition>;
-  };
-}
-
-export interface FieldDefinition {
-  type: 'string' | 'number' | 'boolean' | 'date' | 'json';
-  required?: boolean;
-  default?: any;
 }
