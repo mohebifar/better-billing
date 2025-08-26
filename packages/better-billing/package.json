@@ -1,6 +1,6 @@
 {
   "name": "better-billing",
-  "version": "0.1.0",
+  "version": "0.1.1-alpha.0",
   "description": "TypeScript-first, provider-agnostic billing infrastructure",
   "type": "module",
   "main": "./dist/index.cjs",
