@@ -6,5 +6,7 @@
     "better-billing": "0.1.0",
     "@better-billing/cli": "0.1.0"
   },
-  "changesets": []
+  "changesets": [
+    "two-snakes-begin"
+  ]
 }
