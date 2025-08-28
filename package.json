@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "pnpm -r build",
+    "build": "pnpm -r --filter='!./docs' build",
     "dev": "pnpm -r dev",
     "typecheck": "pnpm -r typecheck",
     "test": "echo \"Error: no test specified\" && exit 1",

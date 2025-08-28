@@ -1,13 +1,71 @@
 ---
-title: Hello World
-description: Your first document
+title: Better Billing
+description: TypeScript-first, provider-agnostic billing infrastructure for modern applications
 ---
 
-Welcome to the docs! You can start writing documents in `/content/docs`.
+# Better Billing
 
-## What is Next?
+A comprehensive billing solution that simplifies subscription management, payment processing, and usage-based billing for modern TypeScript applications.
+
+## Why Better Billing?
+
+Building billing infrastructure is complex and time-consuming. Better Billing provides:
+
+- **Type Safety**: Full TypeScript support with auto-generated types
+- **Provider Flexibility**: Switch between Stripe, Polar, and other providers without changing your code
+- **Database Agnostic**: Works with Drizzle ORM, Prisma, and other adapters
+- **Framework Support**: Integrates seamlessly with Next.js, Remix, Hono, and more
+- **Developer Experience**: Simple CLI tools and intuitive APIs
+
+## Key Features
+
+### 🚀 Quick Setup
+Get started in minutes with our CLI tool that handles initialization, migrations, and schema generation.
+
+### 💳 Multi-Provider Support
+Write once, work with any payment provider. Currently supports Stripe and Polar with more coming soon.
+
+### 🗄️ Flexible Database Layer
+Choose your preferred ORM - Drizzle or Prisma - without vendor lock-in.
+
+### 🔌 Plugin System
+Extend functionality with custom plugins for usage metering, webhooks, and business logic.
+
+### 🛡️ Production Ready
+Battle-tested with automatic webhook handling, error recovery, and comprehensive logging.
+
+## Quick Example
+
+```typescript
+import { betterBilling } from 'better-billing';
+import { drizzleAdapter } from 'better-billing/adapters/drizzle';
+import { stripePlugin } from 'better-billing/plugins/stripe';
+
+const billing = betterBilling({
+  database: drizzleAdapter(db),
+  provider: 'stripe',
+  plugins: [
+    stripePlugin({
+      stripe,
+      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET
+    })
+  ]
+});
+
+// Create a checkout session
+const session = await billing.methods.stripe.createCheckoutSession({
+  customerId: customer.id,
+  priceId: 'price_123',
+  successUrl: 'https://app.com/success',
+  cancelUrl: 'https://app.com/cancel'
+});
+```
+
+## Get Started
 
 <Cards>
-  <Card title="Learn more about Next.js" href="https://nextjs.org/docs" />
-  <Card title="Learn more about Fumadocs" href="https://fumadocs.vercel.app" />
+  <Card title="Getting Started" href="/docs/getting-started" />
+  <Card title="CLI Reference" href="/docs/cli" />
+  <Card title="Configuration" href="/docs/configuration" />
+  <Card title="API Reference" href="/docs/api" />
 </Cards>
