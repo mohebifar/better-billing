@@ -1,4 +1,4 @@
-import { defineBuildConfig } from 'unbuild'
+import { defineBuildConfig } from 'unbuild';
 
 export default defineBuildConfig({
   entries: ['./src/index'],
@@ -7,13 +7,6 @@ export default defineBuildConfig({
   rollup: {
     emitCJS: false,
   },
-  externals: [
-    'stripe',
-    'pg',
-    'mysql2',
-    'prisma',
-    'drizzle-orm',
-    '@prisma/client',
-  ],
+  externals: ['stripe', 'pg', 'mysql2', 'prisma', 'drizzle-orm', '@prisma/client'],
   failOnWarn: false,
-})
+});

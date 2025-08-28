@@ -1,20 +1,20 @@
-import { defineBuildConfig } from "unbuild";
+import { defineBuildConfig } from 'unbuild';
 
 export default defineBuildConfig({
   entries: [
-    "./src/index",
+    './src/index',
     // DB Adapters
-    "./src/adapters/drizzle",
-    "./src/adapters/prisma",
+    './src/adapters/drizzle',
+    './src/adapters/prisma',
     // Integrations
-    "./src/integrations/next-js",
-    "./src/integrations/node",
-    "./src/integrations/react-start",
-    "./src/integrations/solid-start",
-    "./src/integrations/svelte-kit",
+    './src/integrations/next-js',
+    './src/integrations/node',
+    './src/integrations/react-start',
+    './src/integrations/solid-start',
+    './src/integrations/svelte-kit',
     // Plugins
-    "./src/plugins/usage-metering",
-    "./src/plugins/stripe-plugin",
+    './src/plugins/usage-metering',
+    './src/plugins/stripe-plugin',
   ],
   declaration: true,
   clean: true,
@@ -22,20 +22,20 @@ export default defineBuildConfig({
     emitCJS: true,
   },
   externals: [
-    "@prisma/client",
-    "drizzle-orm",
-    "prisma",
+    '@prisma/client',
+    'drizzle-orm',
+    'prisma',
     // Mark all database drivers as external so they're not bundled
-    "pg",
-    "mysql2",
-    "sqlite3",
-    "better-sqlite3",
-    "@planetscale/database",
-    "@vercel/postgres",
-    "@neondatabase/serverless",
-    "@libsql/client",
+    'pg',
+    'mysql2',
+    'sqlite3',
+    'better-sqlite3',
+    '@planetscale/database',
+    '@vercel/postgres',
+    '@neondatabase/serverless',
+    '@libsql/client',
     // Mark Stripe as external so users must install it themselves
-    "stripe",
+    'stripe',
   ],
   failOnWarn: false,
 });

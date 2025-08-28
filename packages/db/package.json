@@ -1,0 +1,76 @@
+{
+  "name": "@better-billing/db",
+  "version": "0.1.0",
+  "description": "Database layer for Better Billing",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "unbuild",
+    "dev": "unbuild --stub",
+    "prepack": "pnpm build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint src/",
+    "lint:fix": "biome lint --write src/",
+    "format": "biome format src/",
+    "format:fix": "biome format --write src/",
+    "check": "biome check src/",
+    "check:fix": "biome check --write src/"
+  },
+  "keywords": [
+    "better-billing"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mohebifar/better-billing.git",
+    "directory": "packages/db"
+  },
+  "homepage": "https://github.com/mohebifar/better-billing#readme",
+  "bugs": {
+    "url": "https://github.com/mohebifar/better-billing/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.7",
+    "@prisma/client": "^5.0.0",
+    "@types/node": "catalog:",
+    "@types/pg": "^8.15.5",
+    "drizzle-kit": "^0.31.4",
+    "drizzle-orm": "^0.44.4",
+    "prisma": "^5.0.0",
+    "typescript": "catalog:",
+    "unbuild": "catalog:",
+    "vitest": "catalog:"
+  },
+  "dependencies": {
+    "better-call": "^1.0.16",
+    "zod": "^4.1.0"
+  },
+  "peerDependencies": {
+    "@prisma/client": ">=5.0.0",
+    "drizzle-orm": ">=0.29.0"
+  },
+  "peerDependenciesMeta": {
+    "@prisma/client": {
+      "optional": true
+    },
+    "drizzle-orm": {
+      "optional": true
+    }
+  },
+  "files": [
+    "dist"
+  ]
+}
