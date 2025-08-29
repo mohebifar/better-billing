@@ -4,8 +4,9 @@ alwaysApply: true
 
 ## IMPORTANT
 - We use pnpm and pnpm workspaces
-- Always check PLAN.md
-- If you find something interesting and learn a new thing (either through the prompt or by checking the existing code), you must update PLAN.md
+- Always check ARCHITECTURE.md
+- If you find something interesting and learn a new thing (either through the prompt or by checking the existing code), you must update ARCHITECTURE.md
+- Do not add unnecessary comments
 
 ## Progress Tracking Rules
 

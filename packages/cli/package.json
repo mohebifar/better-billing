@@ -32,7 +32,7 @@
     "@types/node": "^20.0.0",
     "@types/prompts": "^2.4.0",
     "typescript": "^5.3.0",
-    "unbuild": "^2.0.0"
+    "unbuild": "catalog:"
   },
   "files": [
     "dist"

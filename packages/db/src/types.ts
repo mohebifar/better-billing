@@ -1,4 +1,4 @@
-import { z } from "zod";
+import type { z } from "zod";
 
 export type SchemaDefinition = {
   [modelName: string]: z.ZodObject<any>;
@@ -45,23 +45,23 @@ export type SortBy<Model extends z.ZodObject<any>> = {
 export interface DatabaseAdapter<SchemaDef extends SchemaDefinition, Config> {
   create<T extends ModelNames<SchemaDef>>(
     model: T,
-    data: Partial<SchemaDef[T]>
+    data: Omit<z.infer<SchemaDef[T]>, "id">
   ): Promise<SchemaDef[T]>;
   update<T extends ModelNames<SchemaDef>>(
     model: T,
     where: Where<SchemaDef[T]>,
-    data: Partial<SchemaDef[T]>
+    data: Partial<z.infer<SchemaDef[T]>>
   ): Promise<SchemaDef[T]>;
   findOne<T extends ModelNames<SchemaDef>>(
     model: T,
     where: Where<SchemaDef[T]>,
     sortBy?: SortBy<SchemaDef[T]>
-  ): Promise<SchemaDef[T] | null>;
+  ): Promise<z.infer<SchemaDef[T]> | null>;
   findMany<T extends ModelNames<SchemaDef>>(
     model: T,
     where?: Where<SchemaDef[T]>,
     sortBy?: SortBy<SchemaDef[T]>
-  ): Promise<SchemaDef[T][]>;
+  ): Promise<z.infer<SchemaDef[T]>[]>;
   delete<T extends ModelNames<SchemaDef>>(
     model: T,
     where: Where<SchemaDef[T]>
