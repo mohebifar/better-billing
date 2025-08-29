@@ -31,6 +31,12 @@
     "@biomejs/biome": "^2.2.2",
     "@changesets/cli": "^2.29.6",
     "@types/node": "^20.0.0",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "pnpm": {
+    "overrides": {
+      "css-tree": "2.2.1"
+    }
   }
 }

@@ -2,9 +2,18 @@ import { defineBuildConfig } from "unbuild";
 
 export default defineBuildConfig({
   entries: [
-    "./src/index",
-    // DB Adapters
-    "./src/adapters/drizzle",
+    {
+      input: "./src/index.ts",
+      name: "index",
+    },
+    {
+      input: "./src/adapters/drizzle.ts",
+      name: "adapters/drizzle",
+    },
+    {
+      input: "./src/generators/drizzle.ts",
+      name: "generators/drizzle",
+    },
   ],
   declaration: true,
   clean: true,
