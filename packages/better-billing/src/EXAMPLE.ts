@@ -10,6 +10,7 @@ const drizzleDb = {} as any;
 const stripe = new Stripe("sk_test_123");
 
 const billing = betterBilling({
+  serverUrl: "http://localhost:3000",
   adapter: drizzleAdapter(drizzleDb, {
     provider: "pg",
     schema: {},
@@ -28,13 +29,43 @@ const billing = betterBilling({
     }),
     stripePlugin({
       stripe,
-      subscriptionPlans: [
-        { planName: "Free", stripePriceId: "price_123" },
-        { planName: "Pro", stripePriceId: "price_123" },
-      ],
+      subscriptionPlans: {
+        monthly: [
+          { planName: "Freea", items: [{ price: "price_123" }] },
+          { planName: "Pro", items: [{ price: "price_123" }] },
+        ],
+        yearly: [
+          { planName: "Free", items: [{ price: "price_123" }] },
+          { planName: "Pro", items: [{ price: "price_123" }] },
+        ],
+      },
+      postSuccessUrl: "http://localhost:3000/success",
+      postCancelUrl: "http://localhost:3000/cancel",
+      webhookEndpointSecret: "123",
     }),
   ] as const,
 });
 
-const checkoutSession = billing.providers.stripe.createCheckoutSession({});
+const checkoutSession = billing.providers.stripe.startSubscriptionCheckout({
+  billableId: "123",
+  billableType: "user",
+  planName: "Pro",
+  cadence: "monthly",
+  email: "test@test.com",
+  metadata: {
+    userId: "123",
+  },
+  allowPromotionCodes: true,
+});
+
+const activeSubscriptions =
+  await billing.providers.core.getBillableActiveSubscription({
+    billableId: "123",
+    billableType: "user",
+  });
+
+const hasProPlan = activeSubscriptions.some((s) => s.planName === "Pro");
+
+console.log("Has Pro plan:", hasProPlan);
+
 console.log("Checkout session:", checkoutSession);

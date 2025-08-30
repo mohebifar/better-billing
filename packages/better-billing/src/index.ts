@@ -25,6 +25,7 @@ interface BetterBillingOptions<
   adapter: DBAdapter;
   plugins: Plugins;
   basePath?: string;
+  serverUrl: string;
 }
 
 export const betterBilling = <
@@ -35,12 +36,19 @@ export const betterBilling = <
 ) => {
   const { plugins: pluginFactories } = options;
 
+  const basePath = options.basePath ?? "/api/billing";
+  const serverUrl = options.serverUrl;
+
   const dependencies = {
     db: () => {
       throw new Error("Cannot call db() before plugins are initialized");
     },
     withExtras() {
       return this;
+    },
+    options: {
+      basePath,
+      serverUrl,
     },
   } as unknown as DependencyInjection<Plugins, any>;
 
@@ -84,7 +92,7 @@ export const betterBilling = <
     }, {} as Record<string, Endpoint>);
 
   const api = createAPIRouter(endpoints, {
-    basePath: options.basePath ?? "/api/billing",
+    basePath,
   });
 
   return {

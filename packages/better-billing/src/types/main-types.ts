@@ -5,6 +5,7 @@ import type {
 } from "@better-billing/db";
 import type { Endpoint } from "better-call";
 import type {
+  ExtractProvidersFromAllPlugins,
   MergePaymentProviderImplementations,
   PaymentProviderImplementation,
 } from "./payment-provider-types";
@@ -23,8 +24,10 @@ export type Plugin<
 export type DependencyInjection<
   InputPlugins extends readonly PluginFactoryContainer<any, any>[],
   ExtraSchema extends SchemaDefinition | undefined = undefined,
-  _ExtraProviders extends PaymentProviderImplementation[] = [],
-  _ExtraEndpoints extends Record<string, Endpoint> = {}
+  ExtraProviders extends
+    | PaymentProviderImplementation[]
+    | undefined = undefined,
+  ExtraEndpoints extends Record<string, Endpoint> | undefined = undefined
 > = {
   db: DatabaseAdapter<
     MergeSchemas<
@@ -38,9 +41,18 @@ export type DependencyInjection<
     any
   >;
   providers: MergePaymentProviderImplementations<
-    InferPluginFromFactoryContainerArray<InputPlugins>
+    [
+      ...ExtractProvidersFromAllPlugins<
+        InferPluginFromFactoryContainerArray<InputPlugins>
+      >,
+      ...(ExtraProviders extends undefined ? [] : ExtraProviders)
+    ]
   >;
-  // endpoints: ExtractEndpointsFromPlugins<InputPlugins>;
+  options: {
+    basePath: string;
+    serverUrl: string;
+  };
+  _endpoints: [ExtraEndpoints];
   withExtras: <
     PFC extends PluginFactoryContainer<any, any>
   >() => PFC extends PluginFactoryContainer<any, infer PF>

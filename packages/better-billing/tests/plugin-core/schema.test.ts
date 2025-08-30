@@ -32,6 +32,7 @@ describe("core plugin schema", () => {
     const billing = betterBilling({
       plugins: [schema],
       adapter: db,
+      serverUrl: "http://localhost:3000",
     });
 
     const generatedSchema = generateDrizzleSchema(
@@ -40,12 +41,17 @@ describe("core plugin schema", () => {
     );
 
     expect(generatedSchema).toMatchInlineSnapshot(`
-      "import { integer, jsonb, pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
+      "import { boolean, integer, jsonb, pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
 
       export const billables = pgTable("billables", {
           id: varchar("id").notNull(),
-          type: varchar("type").notNull(),
-          externalId: varchar("external_id").notNull(),
+          billableType: varchar("billable_type").notNull(),
+          billableId: varchar("billable_id").notNull(),
+          provider: varchar("provider").notNull(),
+          providerBillableId: varchar("provider_billable_id").notNull(),
+          name: varchar("name"),
+          email: varchar("email"),
+          metadata: jsonb("metadata"),
           createdAt: timestamp("created_at").notNull(),
           updatedAt: timestamp("updated_at").notNull()
         });
@@ -53,17 +59,19 @@ describe("core plugin schema", () => {
           id: varchar("id").notNull(),
           billableId: varchar("billable_id").notNull(),
           planName: varchar("plan_name").notNull(),
-          providerId: varchar("provider_id").notNull(),
-          providerSubscriptionId: varchar("provider_subscription_id"),
+          cadence: jsonb("cadence").notNull(),
+          provider: varchar("provider").notNull(),
+          providerId: varchar("provider_id"),
           status: jsonb("status").notNull(),
           currentPeriodStart: timestamp("current_period_start"),
           currentPeriodEnd: timestamp("current_period_end"),
           trialStart: timestamp("trial_start"),
           trialEnd: timestamp("trial_end"),
           cancelAt: timestamp("cancel_at"),
+          cancelAtPeriodEnd: boolean("cancel_at_period_end"),
           canceledAt: timestamp("canceled_at"),
           endedAt: timestamp("ended_at"),
-          quantity: text("quantity").notNull(),
+          metadata: jsonb("metadata"),
           createdAt: timestamp("created_at").notNull(),
           updatedAt: timestamp("updated_at").notNull()
         });
@@ -96,9 +104,8 @@ describe("core plugin schema", () => {
       export const invoices = pgTable("invoices", {
           id: varchar("id").notNull(),
           billableId: varchar("billable_id").notNull(),
-          subscriptionId: varchar("subscription_id"),
+          provider: varchar("provider").notNull(),
           providerId: varchar("provider_id").notNull(),
-          providerInvoiceId: varchar("provider_invoice_id").notNull(),
           number: varchar("number"),
           status: jsonb("status").notNull(),
           subtotal: integer("subtotal").notNull(),
@@ -117,15 +124,14 @@ describe("core plugin schema", () => {
           id: varchar("id").notNull(),
           invoiceId: varchar("invoice_id").notNull(),
           subscriptionId: varchar("subscription_id"),
-          planName: varchar("plan_name"),
           description: varchar("description").notNull(),
           quantity: text("quantity").notNull(),
-          unitAmount: integer("unit_amount").notNull(),
           amount: integer("amount").notNull(),
           currency: text("currency").notNull(),
           periodStart: timestamp("period_start"),
           periodEnd: timestamp("period_end"),
-          createdAt: timestamp("created_at").notNull()
+          createdAt: timestamp("created_at").notNull(),
+          updatedAt: timestamp("updated_at").notNull()
         });"
     `);
   });
