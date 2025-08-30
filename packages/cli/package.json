@@ -1,6 +1,6 @@
 {
   "name": "@better-billing/cli",
-  "version": "0.1.1-alpha.1",
+  "version": "0.1.1-alpha.2",
   "description": "CLI tool for Better Billing",
   "type": "module",
   "bin": {
