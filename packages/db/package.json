@@ -1,6 +1,6 @@
 {
   "name": "@better-billing/db",
-  "version": "0.1.0",
+  "version": "0.1.1-alpha.1",
   "description": "Database layer for Better Billing",
   "type": "module",
   "exports": {
