@@ -4,9 +4,11 @@
   "initialVersions": {
     "better-billing-docs": "0.0.0",
     "better-billing": "0.1.0",
-    "@better-billing/cli": "0.1.0"
+    "@better-billing/cli": "0.1.0",
+    "@better-billing/db": "0.1.0"
   },
   "changesets": [
+    "lemon-parts-bake",
     "two-snakes-begin"
   ]
 }
