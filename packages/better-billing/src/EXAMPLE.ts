@@ -17,7 +17,7 @@ const billing = betterBilling({
   }),
   plugins: [
     corePlugin({
-      plans: [
+      subscriptionPlans: [
         {
           planName: "Free",
         },
@@ -59,7 +59,7 @@ const checkoutSession = billing.providers.stripe.startSubscriptionCheckout({
 });
 
 const activeSubscriptions =
-  await billing.providers.core.getBillableActiveSubscription({
+  await billing.providers.core.getBillableActiveSubscriptions({
     billableId: "123",
     billableType: "user",
   });

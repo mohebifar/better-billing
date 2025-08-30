@@ -1,9 +1,8 @@
 ---
 title: Better Billing
 description: TypeScript-first, provider-agnostic billing infrastructure for modern applications
+icon: CreditCard
 ---
-
-# Better Billing
 
 A comprehensive billing solution that simplifies subscription management, payment processing, and usage-based billing for modern TypeScript applications.
 
@@ -23,49 +22,109 @@ Building billing infrastructure is complex and time-consuming. Better Billing pr
 Get started in minutes with our CLI tool that handles initialization, migrations, and schema generation.
 
 ### 💳 Multi-Provider Support
-Write once, work with any payment provider. Currently supports Stripe and Polar with more coming soon.
+Write once, work with any payment provider. Currently supports Stripe with more coming soon.
 
 ### 🗄️ Flexible Database Layer
-Choose your preferred ORM - Drizzle or Prisma - without vendor lock-in.
+Choose your preferred ORM without vendor lock-in.
 
 ### 🔌 Plugin System
 Extend functionality with custom plugins for usage metering, webhooks, and business logic.
-
-### 🛡️ Production Ready
-Battle-tested with automatic webhook handling, error recovery, and comprehensive logging.
 
 ## Quick Example
 
 ```typescript
 import { betterBilling } from 'better-billing';
-import { drizzleAdapter } from 'better-billing/adapters/drizzle';
+import drizzleAdapter from '@better-billing/db/adapters/drizzle';
+import { corePlugin } from 'better-billing/plugins/core';
 import { stripePlugin } from 'better-billing/plugins/stripe';
+import Stripe from 'stripe';
+
+const stripe = new Stripe('sk_test_...');
 
 const billing = betterBilling({
-  database: drizzleAdapter(db),
-  provider: 'stripe',
+  serverUrl: 'http://localhost:3000',
+  adapter: drizzleAdapter(db, { provider: 'pg', schema: {} }),
   plugins: [
+    corePlugin({
+      subscriptionPlans: [
+        { planName: 'Free' },
+        { planName: 'Pro', trialDays: 7 },
+      ],
+    }),
     stripePlugin({
       stripe,
-      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET
-    })
-  ]
+      subscriptionPlans: {
+        monthly: [
+          { planName: 'Free', items: [{ price: 'price_free_monthly' }] },
+          { planName: 'Pro', items: [{ price: 'price_pro_monthly' }] },
+        ],
+      },
+      postSuccessUrl: 'https://app.com/success',
+      postCancelUrl: 'https://app.com/cancel',
+      webhookEndpointSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    }),
+  ] as const,
 });
 
-// Create a checkout session
-const session = await billing.methods.stripe.createCheckoutSession({
-  customerId: customer.id,
-  priceId: 'price_123',
-  successUrl: 'https://app.com/success',
-  cancelUrl: 'https://app.com/cancel'
+// Start a subscription checkout
+const session = await billing.providers.stripe.startSubscriptionCheckout({
+  billableId: 'user_123',
+  billableType: 'user',
+  planName: 'Pro',
+  cadence: 'monthly',
+  email: 'customer@example.com',
 });
 ```
+
+## Platform Support
+
+Better Billing is designed to be provider and database agnostic. Here's what's currently supported and what we can support in the future:
+
+### Payment Providers
+
+| Provider | Status | Plugin | Description |
+|----------|--------|---------|-------------|
+| **Stripe** | ✅ **Supported** | `stripePlugin` | Full subscription management, checkout sessions, webhooks |
+| **Polar** | 🚧 **Open** | `polarPlugin` | Polar payment processing |
+| **Paddle** | 🚧 **Open** | `paddlePlugin` | MoR (Merchant of Record) payment processing |
+| **PayPal** | 🚧 **Open** | `paypalPlugin` | Global payment solutions |
+| **Lemonsqueezy** | 🚧 **Open** | `lemonsqueezyPlugin` | Creator-focused payment platform |
+| **Razorpay** | 🚧 **Open** | `razorpayPlugin` | India-focused payment gateway |
+| **Custom** | ✅ **Supported** | Custom plugins | Build your own payment provider integration |
+
+### Database Adapters
+
+| Database/ORM | Status | Adapter | Description |
+|--------------|--------|----------|-------------|
+| **Drizzle ORM** | ✅ **Supported** | `drizzleAdapter` | Works with PostgreSQL, MySQL, SQLite |
+| **Prisma** | 🚧 **Open** | `prismaAdapter` | Popular TypeScript ORM |
+| **Kysely** | 🚧 **Open** | `kyselyAdapter` | Type-safe SQL query builder |
+| **TypeORM** | 🚧 **Open** | `typeormAdapter` | Mature ORM with decorators |
+| **Raw SQL** | 🚧 **Open** | `sqlAdapter` | Direct SQL query interface |
+| **Custom** | ✅ **Supported** | Custom adapters | Implement your own database adapter |
+
+### Framework Integrations
+
+All major frameworks are supported through dedicated adapters:
+
+| Framework | Status | Integration |
+|-----------|--------|-------------|
+| **Next.js** | ✅ **Supported** | `toNextJsHandler` |
+| **React Start** | ✅ **Supported** | `toReactStartHandler` |
+| **Solid Start** | ✅ **Supported** | `toSolidStartHandler` |
+| **SvelteKit** | ✅ **Supported** | `toSvelteKitHandler` |
+| **Node.js/Express** | ✅ **Supported** | `toNodeHandler` |
+| **Hono** | ✅ **Supported** | `toHonoHandler` |
+| **Fastify** | ✅ **Supported** | `toFastifyHandler` |
+
 
 ## Get Started
 
 <Cards>
-  <Card title="Getting Started" href="/docs/getting-started" />
-  <Card title="CLI Reference" href="/docs/cli" />
-  <Card title="Configuration" href="/docs/configuration" />
-  <Card title="API Reference" href="/docs/api" />
+  <Card title="Getting Started" href="/docs/getting-started" description="Set up Better Billing with the core plugin" />
+  <Card title="Stripe Setup" href="/docs/stripe-setup" description="Add Stripe payment processing" />
+  <Card title="Framework Integrations" href="/docs/integrations" description="Configure API endpoints for your framework" />
+  <Card title="Plugin System" href="/docs/plugins" description="Understand available plugins and how to use them" />
+  <Card title="Using Providers" href="/docs/providers" description="Use billing methods and providers" />
+  <Card title="Plugin Development" href="/docs/plugin-development" description="Create custom plugins and extend functionality" />
 </Cards>

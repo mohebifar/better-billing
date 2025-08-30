@@ -60,6 +60,7 @@ describe("plugins merged providers", () => {
     const billing = betterBilling({
       adapter: db,
       plugins: [plugin1],
+      serverUrl: "http://localhost",
     });
 
     billing.providers.mock.createSubscription({});
@@ -126,6 +127,7 @@ describe("plugins merged providers", () => {
     const billing = betterBilling({
       adapter: db,
       plugins: [plugin1, plugin2] as const,
+      serverUrl: "http://localhost",
     });
 
     billing.providers.stripe.createSubscription({});

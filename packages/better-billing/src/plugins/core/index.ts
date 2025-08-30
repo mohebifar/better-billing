@@ -12,7 +12,7 @@ export interface SubscriptionPlan {
 }
 
 export interface CorePluginOptions {
-  plans: SubscriptionPlan[];
+  subscriptionPlans: SubscriptionPlan[];
 }
 
 export const coreSchema = {
@@ -155,7 +155,7 @@ export const corePlugin = (_options: CorePluginOptions) => {
             capability: "extension" as const,
             providerId: "core",
             methods: {
-              getBillableActiveSubscription: async (params: {
+              getBillableActiveSubscriptions: async (params: {
                 billableId: string;
                 billableType: string;
               }): Promise<Subscription[]> => {

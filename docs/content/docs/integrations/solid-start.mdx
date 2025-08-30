@@ -1,0 +1,59 @@
+---
+title: Solid Start Integration
+description: Set up Better Billing with SolidJS Start framework
+icon: SolidStart
+---
+
+## Setup
+
+Create a catch-all API route:
+
+```typescript
+// src/routes/api/billing/*billing.ts
+import { billing } from "@/lib/billing";
+import { toSolidStartHandler } from "better-billing/integrations/solid-start";
+
+const handler = toSolidStartHandler(billing.api);
+
+export const { GET, POST, PUT, DELETE, PATCH } = handler;
+```
+
+## Configuration
+
+```typescript
+// src/lib/billing.ts
+import { betterBilling } from "better-billing";
+import { corePlugin } from "better-billing/plugins/core";
+import { stripePlugin } from "better-billing/plugins/stripe";
+
+export const billing = betterBilling({
+  plugins: [
+    corePlugin({ ... }),
+    stripePlugin({ ... }),
+  ],
+});
+```
+
+## Webhook URL
+
+```
+https://yourdomain.com/api/billing/stripe/webhook
+```
+
+## Server Functions
+
+Use Solid Start's server functions:
+
+```typescript
+import { createServerAction$ } from "solid-start/server";
+import { billing } from "@/lib/billing";
+
+export const getActiveSubscriptions = createServerAction$(async (formData: FormData) => {
+  const userId = "user_123"; // Get from your auth system
+
+  return await billing.providers.core.getBillableActiveSubscriptions({
+    billableId: userId,
+    billableType: "user",
+  });
+});
+```

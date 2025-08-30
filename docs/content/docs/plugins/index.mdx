@@ -1,0 +1,149 @@
+---
+title: Plugin System
+description: Understanding Better Billing's plugin architecture and available plugins
+icon: Plug
+---
+
+Better Billing is built around a plugin system that lets you compose exactly the functionality you need.
+
+## Available Plugins
+
+- **[Core Plugin](/docs/plugins/core)** - Required base functionality and schema
+- **[Stripe Plugin](/docs/plugins/stripe)** - Stripe payment processing integration
+
+## Using Plugins Together
+
+Combine plugins to get the functionality you need:
+
+```typescript
+import { betterBilling } from "better-billing";
+import { corePlugin } from "better-billing/plugins/core";
+import { stripePlugin } from "better-billing/plugins/stripe";
+
+const billing = betterBilling({
+  serverUrl: "https://app.com",
+  adapter: drizzleAdapter(db, { provider: "pg", schema }),
+  plugins: [
+    // Core plugin is always required first
+    corePlugin({
+      subscriptionPlans: [
+        { planName: "Free" },
+        { planName: "Pro", trialDays: 7 },
+        { planName: "Enterprise", trialDays: 14 },
+      ],
+    }),
+    
+    // Add payment processing with Stripe
+    stripePlugin({
+      stripe,
+      subscriptionPlans: {
+        monthly: [
+          { planName: "Pro", items: [{ price: "price_pro_monthly" }] },
+          { planName: "Enterprise", items: [{ price: "price_enterprise_monthly" }] },
+        ],
+      },
+      postSuccessUrl: "https://app.com/dashboard",
+      postCancelUrl: "https://app.com/pricing",
+      webhookEndpointSecret: process.env.STRIPE_WEBHOOK_SECRET!,
+    }),
+  ] as const, // Important: use 'as const' for type inference
+});
+```
+
+## Plugin Features
+
+### Automatic Schema Merging
+
+When multiple plugins define schemas, they're automatically combined.
+
+### Provider Integration
+
+Access all plugin functionality through providers:
+
+```typescript
+// Core provider methods
+const subs = await billing.providers.core.getBillableActiveSubscriptions({
+  billableId: "user_123",
+  billableType: "user",
+});
+
+// Stripe provider methods
+const checkout = await billing.providers.stripe.startSubscriptionCheckout({
+  billableId: "user_123",
+  billableType: "user",
+  planName: "Pro",
+  cadence: "monthly",
+  email: "user@example.com",
+});
+```
+
+### API Endpoints
+
+Plugins automatically create API endpoints:
+
+```typescript
+// Stripe plugin creates: POST /api/billing/stripe/webhook
+// Your custom plugins can add more endpoints
+```
+
+## Plan Mapping
+
+Core plugin defines plans, other plugins map to their services:
+
+```typescript
+// Core plugin: Define business plans
+corePlugin({
+  subscriptionPlans: [
+    { planName: "Starter" },
+    { planName: "Professional" },
+    { planName: "Enterprise" },
+  ],
+})
+
+// Stripe plugin: Map plans to Stripe prices
+stripePlugin({
+  subscriptionPlans: {
+    monthly: [
+      // The plan name must match the plan name configured in the core plugin
+      { planName: "Starter", items: [{ price: "price_starter_monthly" }] },
+      { planName: "Professional", items: [{ price: "price_pro_monthly" }] },
+      { planName: "Enterprise", items: [{ price: "price_enterprise_monthly" }] },
+    ],
+  },
+})
+```
+
+## Type Safety
+
+Better Billing provides full TypeScript support:
+
+```typescript
+// Plugin array must be 'as const' for type inference
+plugins: [corePlugin({}), stripePlugin({})] as const
+
+// Provider methods are fully typed
+const session = await billing.providers.stripe.startSubscriptionCheckout({
+  billableId: "user_123",
+  billableType: "user",
+  planName: "Pro",        // Must match configured plans
+  cadence: "monthly",     // "monthly" | "yearly"
+});
+```
+
+## Best Practices
+
+1. **Always include the core plugin** - it provides essential functionality
+2. **Use `as const`** when defining the plugins array for proper type inference
+3. **Plan your plugin order** - plugins can depend on each other
+4. **Map plans consistently** - ensure plan names match across plugins
+5. **Configure webhooks** - set up API endpoints for plugin webhooks to work
+
+## Common Setups
+
+### Basic SaaS App
+```typescript
+plugins: [
+  corePlugin({ subscriptionPlans: [...] }),
+  stripePlugin({ stripe, ... }),
+] as const
+```

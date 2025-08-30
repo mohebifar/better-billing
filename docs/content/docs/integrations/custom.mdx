@@ -1,0 +1,55 @@
+---
+title: Custom Server Integration
+description: Integrate Better Billing with any custom server or framework
+icon: CircleQuestionMark
+---
+
+If your framework isn't directly supported, you can use the raw handler.
+
+## Generic Web API Handler
+
+```typescript
+export async function handleBillingRequest(request: Request): Promise<Response> {
+  return await billing.api.handler(request);
+}
+```
+
+## Custom Server Example
+
+```typescript
+// Use in your custom server
+app.use('/api/billing/*', async (req, res) => {
+  const request = new Request(`${baseURL}${req.url}`, {
+    method: req.method,
+    headers: req.headers as HeadersInit,
+    body: req.method !== 'GET' ? req : undefined,
+  });
+  
+  const response = await billing.api.handler(request);
+  
+  res.status(response.status);
+  response.headers.forEach((value, key) => {
+    res.setHeader(key, value);
+  });
+  res.send(await response.text());
+});
+```
+
+## Framework Adaptation
+
+The handler expects and returns standard Web API `Request` and `Response` objects. Convert these to your framework's format:
+
+```typescript
+// Convert your framework's request to Web API Request
+const webRequest = new Request(url, {
+  method: originalRequest.method,
+  headers: originalRequest.headers,
+  body: originalRequest.body,
+});
+
+// Handle the request
+const webResponse = await billing.api.handler(webRequest);
+
+// Convert Web API Response back to your framework
+// Set status, headers, and body according to your framework's API
+```

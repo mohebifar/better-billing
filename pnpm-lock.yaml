@@ -4,40 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-catalogs:
-  default:
-    '@types/node':
-      specifier: ^22.0.0
-      version: 22.18.0
-    typescript:
-      specifier: ^5.3.0
-      version: 5.9.2
-    unbuild:
-      specifier: ^3.6.0
-      version: 3.6.1
-    vitest:
-      specifier: ^3.2.4
-      version: 3.2.4
-  dev-db-adapters:
-    '@electric-sql/pglite':
-      specifier: ^0.3.7
-      version: 0.3.7
-    '@prisma/client':
-      specifier: ^5.0.0
-      version: 5.22.0
-    '@types/pg':
-      specifier: ^8.15.5
-      version: 8.15.5
-    drizzle-kit:
-      specifier: ^0.31.4
-      version: 0.31.4
-    drizzle-orm:
-      specifier: ^0.44.4
-      version: 0.44.4
-    prisma:
-      specifier: ^5.0.0
-      version: 5.22.0
-
 overrides:
   css-tree: 2.2.1
 
@@ -72,6 +38,9 @@ importers:
       fumadocs-ui:
         specifier: 15.7.1
         version: 15.7.1(@types/react-dom@19.1.7(@types/react@19.1.11))(@types/react@19.1.11)(next@15.5.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1))(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(tailwindcss@4.1.12)
+      lucide-react:
+        specifier: ^0.542.0
+        version: 0.542.0(react@19.1.1)
       next:
         specifier: 15.5.0
         version: 15.5.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -81,6 +50,9 @@ importers:
       react-dom:
         specifier: ^19.1.1
         version: 19.1.1(react@19.1.1)
+      react-icons:
+        specifier: ^5.5.0
+        version: 5.5.0(react@19.1.1)
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4.1.12
@@ -2786,6 +2758,11 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
+  lucide-react@0.542.0:
+    resolution: {integrity: sha512-w3hD8/SQB7+lzU2r4VdFyzzOzKnUjTZIF/MQJGSSvni7Llewni4vuViRppfRAa2guOsY5k4jZyxw/i9DQHv+dw==}
+    peerDependencies:
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
   magic-string@0.30.18:
     resolution: {integrity: sha512-yi8swmWbO17qHhwIBNeeZxTceJMeBvWJaId6dyvTSOwTipqeHhMhOrz6513r1sOKnpvQ7zkhlG8tPrpilwTxHQ==}
 
@@ -3438,6 +3415,11 @@ packages:
     resolution: {integrity: sha512-Dlq/5LAZgF0Gaz6yiqZCf6VCcZs1ghAJyrsu84Q/GT0gV+mCxbfmKNoGRKBYMJ8IEdGPqu49YWXD02GCknEDkw==}
     peerDependencies:
       react: ^19.1.1
+
+  react-icons@5.5.0:
+    resolution: {integrity: sha512-MEFcXdkP3dLo8uumGI5xN3lDFNsRtrjbOEKDLD7yv76v4wpnEq2Lt2qeHaQOr34I/wPN3s3+N08WkQ+CW37Xiw==}
+    peerDependencies:
+      react: '*'
 
   react-medium-image-zoom@5.3.0:
     resolution: {integrity: sha512-RCIzVlsKqy3BYgGgYbolUfuvx0aSKC7YhX/IJGEp+WJxsqdIVYJHkBdj++FAj6VD7RiWj6VVmdCfa/9vJE9hZg==}
@@ -6506,6 +6488,10 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
+  lucide-react@0.542.0(react@19.1.1):
+    dependencies:
+      react: 19.1.1
+
   magic-string@0.30.18:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
@@ -7384,6 +7370,10 @@ snapshots:
     dependencies:
       react: 19.1.1
       scheduler: 0.26.0
+
+  react-icons@5.5.0(react@19.1.1):
+    dependencies:
+      react: 19.1.1
 
   react-medium-image-zoom@5.3.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
     dependencies:

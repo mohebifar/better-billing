@@ -26,7 +26,7 @@ describe("core plugin schema", () => {
 
   it("should have a schema", () => {
     const schema = corePlugin({
-      plans: [],
+      subscriptionPlans: [],
     });
 
     const billing = betterBilling({
