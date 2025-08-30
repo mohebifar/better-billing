@@ -136,11 +136,10 @@ export function drizzleAdapter(
       return result.rows[0];
     },
     update: async (model, where, data) => {
-      const result = await db
+      await db
         .update(getSchema(model))
         .set(data)
         .where(convertWhereToDrizzleWhere(model, where));
-      return result.rows[0];
     },
     findOne: async (model, where, sortBy) => {
       let query: PgSelectWithout<any, any, any> = db

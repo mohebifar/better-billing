@@ -45,13 +45,14 @@ export type SortBy<Model extends z.ZodObject<any>> = {
 export interface DatabaseAdapter<SchemaDef extends SchemaDefinition, Config> {
   create<T extends ModelNames<SchemaDef>>(
     model: T,
-    data: Omit<z.infer<SchemaDef[T]>, "id">
-  ): Promise<SchemaDef[T]>;
+    data: Omit<z.infer<SchemaDef[T]>, "id" | "createdAt" | "updatedAt"> &
+      Partial<Pick<z.infer<SchemaDef[T]>, "createdAt" | "updatedAt">>
+  ): Promise<z.infer<SchemaDef[T]>>;
   update<T extends ModelNames<SchemaDef>>(
     model: T,
     where: Where<SchemaDef[T]>,
     data: Partial<z.infer<SchemaDef[T]>>
-  ): Promise<SchemaDef[T]>;
+  ): Promise<void>;
   findOne<T extends ModelNames<SchemaDef>>(
     model: T,
     where: Where<SchemaDef[T]>,

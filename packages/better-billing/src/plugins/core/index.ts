@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { createPlugin } from "../../plugin-factory";
-import { indexRegistry } from "../../utils/db";
+import { createPlugin } from "~/plugin-factory";
+import type { Subscription } from "~/types/payment-provider-interfaces";
+import { indexRegistry } from "~/utils/db";
 
 export interface SubscriptionPlan {
   planName: string;
@@ -14,12 +15,17 @@ export interface CorePluginOptions {
   plans: SubscriptionPlan[];
 }
 
-const schema = {
+export const coreSchema = {
   // Polymorphic billable entities (users, organizations, teams, etc.)
   billables: z.object({
     id: z.string(),
-    type: z.string(), // "user", "organization", "team", etc.
-    externalId: z.string(), // Reference to your existing user/org table
+    billableType: z.string(), // "user", "organization", "team", etc.
+    billableId: z.string(), // Reference to your existing user/org table
+    provider: z.string(), // "stripe", "polar", etc.
+    providerBillableId: z.string(), // Stripe customer ID, Polar user ID, etc.
+    name: z.string().optional(),
+    email: z.string().optional(),
+    metadata: z.record(z.string(), z.any()).optional(),
     createdAt: z.date(),
     updatedAt: z.date(),
   }),
@@ -29,8 +35,9 @@ const schema = {
     id: z.string(),
     billableId: z.string(), // References billables.id
     planName: z.string(), // References plan name from options
-    providerId: z.string(), // "stripe", "polar", etc.
-    providerSubscriptionId: z.string().optional(), // Provider's subscription ID
+    cadence: z.enum(["monthly", "yearly"]), // References cadence from options
+    provider: z.string(), // "stripe", "polar", etc.
+    providerId: z.string().optional(), // Provider's subscription ID
     status: z.enum([
       "active",
       "canceled",
@@ -46,9 +53,10 @@ const schema = {
     trialStart: z.date().optional(),
     trialEnd: z.date().optional(),
     cancelAt: z.date().optional(),
+    cancelAtPeriodEnd: z.boolean().optional(),
     canceledAt: z.date().optional(),
     endedAt: z.date().optional(),
-    quantity: z.number().default(1),
+    metadata: z.record(z.string(), z.any()).optional(),
     createdAt: z.date(),
     updatedAt: z.date(),
   }),
@@ -95,9 +103,8 @@ const schema = {
   invoices: z.object({
     id: z.string(),
     billableId: z.string(), // References billables.id
-    subscriptionId: z.string().optional(), // References subscriptions.id
-    providerId: z.string(), // "stripe", "polar", etc.
-    providerInvoiceId: z.string(),
+    provider: z.string(), // "stripe", "polar", etc.
+    providerId: z.string(),
     number: z.string().optional(), // Invoice number
     status: z.enum(["draft", "open", "paid", "uncollectible", "void"]),
     subtotal: z.number(), // Amount in cents before tax
@@ -118,40 +125,83 @@ const schema = {
     id: z.string(),
     invoiceId: z.string(), // References invoices.id
     subscriptionId: z.string().optional(), // References subscriptions.id
-    planName: z.string().optional(), // Plan name for this line item
     description: z.string(),
     quantity: z.number().default(1),
-    unitAmount: z.number(), // Price per unit in cents
     amount: z.number(), // Total amount for this line item in cents
     currency: z.string().default("usd"),
     periodStart: z.date().optional(),
     periodEnd: z.date().optional(),
     createdAt: z.date(),
+    updatedAt: z.date(),
   }),
 };
 
+indexRegistry.add(coreSchema.billables, [
+  {
+    fields: ["billableType", "billableId", "provider"],
+    unique: true,
+  },
+]);
+
 export const corePlugin = (_options: CorePluginOptions) => {
-  return createPlugin(
-    () => {
-      indexRegistry.add(schema.billables, [
-        {
-          fields: ["id"],
-          unique: true,
-        },
-        {
-          fields: ["type", "externalId"],
-          unique: true,
-        },
-      ]);
+  const plugin = createPlugin(
+    (baseDeps) => {
+      const deps = baseDeps.withExtras<typeof plugin>();
+
       return {
-        schema,
-        providers: [],
+        schema: coreSchema,
+        providers: [
+          {
+            capability: "extension" as const,
+            providerId: "core",
+            methods: {
+              getBillableActiveSubscription: async (params: {
+                billableId: string;
+                billableType: string;
+              }): Promise<Subscription[]> => {
+                const billable = await deps.db.findOne("billables", {
+                  type: "and",
+                  value: [
+                    {
+                      field: "id",
+                      value: { type: "literal", value: params.billableId },
+                    },
+                  ],
+                });
+
+                if (!billable) {
+                  throw new Error(
+                    `Billable not found: ${params.billableId} ${params.billableType}`
+                  );
+                }
+
+                const subscriptions = await deps.db.findMany("subscriptions", {
+                  type: "and",
+                  value: [
+                    {
+                      field: "billableId",
+                      value: { type: "literal", value: billable.id },
+                    },
+                    {
+                      field: "status",
+                      value: { type: "literal", value: "active" },
+                    },
+                  ],
+                });
+
+                return subscriptions;
+              },
+            },
+          },
+        ],
       };
     },
     {
       dependsOn: [] as const,
     }
   );
+
+  return plugin;
 };
 
 type CorePlugin = ReturnType<typeof corePlugin>;

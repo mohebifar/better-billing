@@ -1,41 +1,26 @@
 import type { Plugin } from "./main-types";
-
-export type PaymentProviderCapability =
-  | "subscription"
-  | "one-time"
-  | "checkout-session";
-
-export type CheckoutSessionCreateParams = Record<string, never>;
-export type SubscriptionCreateParams = Record<string, never>;
-export type SubscriptionCancelParams = Record<string, never>;
-export type SubscriptionUpdateParams = Record<string, never>;
-export type SubscriptionGetParams = Record<string, never>;
-export type Subscription = Record<string, never>;
+import type {
+  PaymentProviderCapability,
+  PaymentProviderMethodsByCapability,
+} from "./payment-provider-interfaces";
 
 export type OneTimeProviderMethods = Record<string, never>;
 
-export type CheckoutSessionProviderMethods = {
-  createCheckoutSession: (params: CheckoutSessionCreateParams) => Promise<void>;
-};
-
-export interface SubscriptionProviderMethods {
-  createSubscription: (params: SubscriptionCreateParams) => Promise<void>;
-  cancelSubscription: (params: SubscriptionCancelParams) => Promise<void>;
-  updateSubscription: (params: SubscriptionUpdateParams) => Promise<void>;
-  getSubscription: (params: SubscriptionGetParams) => Promise<Subscription>;
-}
+// Re-export from interfaces for convenience
+export type {
+  CheckoutSessionProviderMethods,
+  InvoiceProviderMethods,
+  PaymentProviderCapability,
+  SubscriptionProviderMethods,
+} from "./payment-provider-interfaces";
 
 export type PaymentProviderImplementation<
   C extends PaymentProviderCapability = PaymentProviderCapability
 > = {
   providerId: string;
   capability: C;
-  methods: C extends "subscription"
-    ? SubscriptionProviderMethods
-    : C extends "one-time"
-    ? OneTimeProviderMethods
-    : C extends "checkout-session"
-    ? CheckoutSessionProviderMethods
+  methods: C extends keyof PaymentProviderMethodsByCapability
+    ? PaymentProviderMethodsByCapability[C]
     : never;
 };
 
