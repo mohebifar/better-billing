@@ -1,5 +1,11 @@
 # @better-billing/db
 
+## 0.1.1-alpha.3
+
+### Patch Changes
+
+- f6c4295: Improve framework integrations
+
 ## 0.1.1-alpha.2
 
 ### Patch Changes

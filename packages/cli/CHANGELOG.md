@@ -1,5 +1,13 @@
 # @better-billing/cli
 
+## 0.1.1-alpha.3
+
+### Patch Changes
+
+- f6c4295: Improve framework integrations
+- Updated dependencies [f6c4295]
+  - better-billing@0.1.1-alpha.3
+
 ## 0.1.1-alpha.2
 
 ### Patch Changes
