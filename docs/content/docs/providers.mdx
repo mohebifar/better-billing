@@ -1,0 +1,264 @@
+---
+title: Using Providers
+description: Learn how to use Better Billing providers and billing methods
+---
+
+# Using Providers
+
+Better Billing organizes functionality through providers. Each provider offers specific capabilities like subscription management, checkout sessions, or payment processing. Providers are accessed through the `billing.providers` object with full type safety.
+
+## Provider Structure
+
+Providers are organized by their ID (e.g., `stripe`, `core`) and contain methods grouped by capabilities:
+
+```typescript
+const billing = betterBilling({ /* ... */ });
+
+// Access provider methods
+billing.providers.stripe.startSubscriptionCheckout({ /* ... */ });
+billing.providers.core.getBillableActiveSubscriptions({ /* ... */ });
+```
+
+## Core Provider
+
+The core provider contains essential billing methods that work independently of payment processors. These methods interact directly with your database.
+
+### Get Active Subscriptions
+
+Retrieve active subscriptions for a billable entity:
+
+```typescript
+const activeSubscriptions = await billing.providers.core.getBillableActiveSubscriptions({
+  billableId: "user_123",
+  billableType: "user",
+});
+
+// Check if user has specific plan
+const hasProPlan = activeSubscriptions.some((subscription) => 
+  subscription.planName === "Pro"
+);
+```
+
+**Parameters:**
+- `billableId`: Unique identifier for the billable entity
+- `billableType`: Type of the billable entity (e.g., "user", "organization")
+
+**Returns:** Array of active subscription objects
+
+### Check Plan Access
+
+```typescript
+// Example: Check if user has access to a feature
+const userSubscriptions = await billing.providers.core.getBillableActiveSubscriptions({
+  billableId: userId,
+  billableType: "user",
+});
+
+const hasApiAccess = userSubscriptions.some(sub => 
+  ["Pro", "Enterprise"].includes(sub.planName)
+);
+```
+
+## Stripe Provider
+
+The Stripe provider handles Stripe-specific operations like checkout sessions, subscription management, and webhooks.
+
+*Note: Requires [Stripe setup](/docs/stripe-setup) to be completed first.*
+
+### Start Subscription Checkout
+
+Create a Stripe checkout session for a subscription:
+
+```typescript
+const checkoutSession = await billing.providers.stripe.startSubscriptionCheckout({
+  billableId: "user_123",
+  billableType: "user",
+  planName: "Pro",
+  cadence: "monthly", // or "yearly"
+  email: "customer@example.com",
+  metadata: {
+    userId: "123",
+    source: "web_app",
+  },
+  allowPromotionCodes: true,
+});
+
+// Redirect user to checkout
+window.location.href = checkoutSession.url;
+```
+
+**Parameters:**
+- `billableId`: Unique identifier for the billable entity
+- `billableType`: Type of the billable entity
+- `planName`: Name of the plan (must match your configured plans)
+- `cadence`: Billing frequency ("monthly" or "yearly")
+- `email`: Customer's email address
+- `metadata` (optional): Additional data to store with the subscription
+- `allowPromotionCodes` (optional): Enable promotion codes in checkout
+
+**Returns:** Stripe checkout session object with `url` property
+
+### Subscription Management
+
+```typescript
+// Cancel a subscription
+await billing.providers.stripe.cancelSubscription({
+  subscriptionId: "sub_123",
+  cancelAtPeriodEnd: true, // Cancel at end of current period
+});
+
+// Update a subscription
+await billing.providers.stripe.updateSubscription({
+  subscriptionId: "sub_123",
+  planName: "Enterprise",
+  cadence: "yearly",
+});
+
+// Get subscription details
+const subscription = await billing.providers.stripe.getSubscription({
+  subscriptionId: "sub_123",
+});
+```
+
+## Billable Entities
+
+Better Billing uses the concept of "billable entities" - any entity that can be billed (users, organizations, teams, etc.).
+
+### Billable ID and Type
+
+Every billable entity requires:
+- `billableId`: Unique identifier (usually your existing entity ID)
+- `billableType`: String describing the entity type
+
+```typescript
+// Examples of different billable entities
+await billing.providers.stripe.startSubscriptionCheckout({
+  billableId: "user_123",
+  billableType: "user",
+  // ...
+});
+
+await billing.providers.stripe.startSubscriptionCheckout({
+  billableId: "org_456", 
+  billableType: "organization",
+  // ...
+});
+
+await billing.providers.stripe.startSubscriptionCheckout({
+  billableId: "team_789",
+  billableType: "team", 
+  // ...
+});
+```
+
+### Querying by Billable
+
+All core provider methods work with billable entities:
+
+```typescript
+// Get subscriptions for different entity types
+const userSubs = await billing.providers.core.getBillableActiveSubscriptions({
+  billableId: "user_123",
+  billableType: "user",
+});
+
+const orgSubs = await billing.providers.core.getBillableActiveSubscriptions({
+  billableId: "org_456", 
+  billableType: "organization",
+});
+```
+
+## Error Handling
+
+Provider methods can throw errors. Always wrap them in try-catch blocks:
+
+```typescript
+try {
+  const checkoutSession = await billing.providers.stripe.startSubscriptionCheckout({
+    billableId: "user_123",
+    billableType: "user",
+    planName: "Pro",
+    cadence: "monthly",
+    email: "customer@example.com",
+  });
+  
+  // Redirect to checkout
+  window.location.href = checkoutSession.url;
+} catch (error) {
+  console.error("Failed to create checkout session:", error);
+  // Handle error (show user message, etc.)
+}
+```
+
+## Type Safety
+
+All provider methods are fully typed. TypeScript will:
+
+1. **Validate parameters** at compile time
+2. **Provide auto-completion** for method names and parameters
+3. **Infer return types** for better development experience
+
+```typescript
+// TypeScript knows the exact shape of these parameters and return values
+const session = await billing.providers.stripe.startSubscriptionCheckout({
+  billableId: "user_123", // string
+  billableType: "user",   // string
+  planName: "Pro",        // must match configured plans
+  cadence: "monthly",     // "monthly" | "yearly"
+  // ... TypeScript will validate all fields
+});
+
+// TypeScript knows session has a 'url' property
+window.location.href = session.url;
+```
+
+## Provider Capabilities
+
+Providers are organized by capabilities rather than just provider names. This allows multiple plugins to extend the same provider with different capabilities.
+
+### Subscription Capability
+
+Methods for managing recurring subscriptions:
+
+- `createSubscription()`: Create a new subscription
+- `cancelSubscription()`: Cancel an existing subscription  
+- `updateSubscription()`: Modify subscription details
+- `getSubscription()`: Retrieve subscription information
+
+### Checkout Session Capability
+
+Methods for creating payment sessions:
+
+- `startSubscriptionCheckout()`: Create a subscription checkout session
+- `getCheckoutSession()`: Retrieve session details
+
+### Example: Multiple Capabilities
+
+```typescript
+// Same provider (stripe) with different capabilities
+const billing = betterBilling({
+  plugins: [
+    corePlugin({ /* ... */ }),
+    stripePlugin({ /* ... */ }), // Provides both subscription + checkout capabilities
+  ] as const,
+});
+
+// Both methods are available on the same provider
+billing.providers.stripe.createSubscription({ /* ... */ });
+billing.providers.stripe.startSubscriptionCheckout({ /* ... */ });
+```
+
+## Best Practices
+
+1. **Always handle errors** when calling provider methods
+2. **Use meaningful billable IDs** that match your existing entity IDs
+3. **Be consistent with billable types** across your application
+4. **Store metadata** for tracking and debugging purposes
+5. **Check plan access** before allowing access to premium features
+6. **Test with different scenarios** including edge cases and failures
+
+## Next Steps
+
+- [Set up Stripe](/docs/stripe-setup) - Add payment processing to your app
+- [Framework Integration](/docs/integrations) - Configure API endpoints
+- [Plugin Development](/docs/plugin-development) - Create custom providers

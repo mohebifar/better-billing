@@ -1,0 +1,4 @@
+{
+  "title": "Framework Integrations",
+  "pages": ["nextjs", "solid-start", "sveltekit", "nodejs", "custom"]
+}

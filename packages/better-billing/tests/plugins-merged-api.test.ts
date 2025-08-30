@@ -58,6 +58,7 @@ describe("plugins merged api", () => {
     const billing = betterBilling({
       adapter: db,
       plugins: [plugin1],
+      serverUrl: "http://localhost",
     });
 
     const response = await billing.api.handler(
@@ -122,6 +123,7 @@ describe("plugins merged api", () => {
     const billing = betterBilling({
       adapter: db,
       plugins: [plugin1, plugin2],
+      serverUrl: "http://localhost",
     });
 
     const response = await billing.api.handler(
@@ -187,6 +189,7 @@ describe("plugins merged api", () => {
     const billing = betterBilling({
       adapter: db,
       plugins: [plugin1, plugin2],
+      serverUrl: "http://localhost",
     });
 
     const response = await billing.api.handler(

@@ -67,6 +67,7 @@ describe("plugins merged schema", () => {
     const billing = betterBilling({
       adapter: db,
       plugins: [plugin1, plugin2] as const,
+      serverUrl: "http://localhost",
     });
 
     const mergedSchema = billing.getMergedSchema();
@@ -105,6 +106,7 @@ describe("plugins merged schema", () => {
     const billing = betterBilling({
       adapter: db,
       plugins: [plugin1, plugin2] as const,
+      serverUrl: "http://localhost",
     });
 
     const mergedSchema = billing.getMergedSchema();
@@ -145,6 +147,7 @@ describe("plugins merged schema", () => {
     const billing = betterBilling({
       adapter: db,
       plugins: [plugin1, plugin2] as const,
+      serverUrl: "http://localhost",
     });
 
     const mergedSchema = billing.getMergedSchema();
@@ -194,6 +197,7 @@ describe("plugins merged schema", () => {
     const billing = betterBilling({
       adapter: db,
       plugins: [plugin1, plugin2] as const,
+      serverUrl: "http://localhost",
     });
 
     const mergedSchema = billing.getMergedSchema();

@@ -1,0 +1,332 @@
+---
+title: API Endpoints
+description: Learn how to use and extend Better Billing's HTTP API endpoints
+---
+
+# API Endpoints
+
+Better Billing provides a unified HTTP API that handles webhooks, payments, and custom endpoints. All endpoints are automatically mounted under `/api/billing/` and can be extended through plugins.
+
+## Using the API
+
+### API Handler
+
+The billing instance provides an API handler that processes HTTP requests. Use the framework-specific integrations for easy setup:
+
+```typescript
+const billing = betterBilling({ /* ... */ });
+
+// Framework-specific adapters handle the integration
+import { toNextJsHandler } from "better-billing/integrations/next-js";
+const handler = toNextJsHandler(billing.api);
+```
+
+For detailed setup instructions, see the [Framework Integrations guide](/docs/integrations).
+
+## Built-in Endpoints
+
+### Stripe Webhooks
+
+When using the Stripe plugin, webhook endpoints are automatically created:
+
+```
+POST /api/billing/stripe/webhook
+```
+
+The Stripe plugin handles:
+- Subscription updates
+- Payment confirmations  
+- Customer updates
+- Invoice events
+
+**Setup:** Configure your Stripe webhook endpoint to point to your app's `/api/billing/stripe/webhook` URL.
+
+## Custom Endpoints
+
+You can add custom endpoints through plugins using the `createEndpoint` function:
+
+```typescript
+import { createEndpoint, createPlugin } from "better-billing";
+
+const customPlugin = createPlugin(
+  () => {
+    return {
+      endpoints: {
+        health: createEndpoint(
+          "/health",
+          {
+            method: "GET", 
+            path: "/health",
+          },
+          async () => {
+            return { status: "ok", timestamp: new Date().toISOString() };
+          }
+        ),
+        
+        customWebhook: createEndpoint(
+          "/custom-webhook",
+          {
+            method: "POST",
+            path: "/custom-webhook", 
+          },
+          async (request) => {
+            const body = await request.json();
+            
+            // Process webhook payload
+            console.log("Received webhook:", body);
+            
+            return { received: true };
+          }
+        ),
+      },
+    };
+  },
+  {
+    dependsOn: [] as const,
+  }
+);
+```
+
+### Endpoint Configuration
+
+Each endpoint requires:
+- **Unique key**: Used internally to identify the endpoint
+- **Path**: The URL path (will be prefixed with `/api/billing/`)
+- **Method**: HTTP method (GET, POST, PUT, DELETE, etc.)
+- **Handler**: Function that processes the request
+
+```typescript
+endpoints: {
+  myEndpoint: createEndpoint(
+    "/my-path",           // Path
+    {
+      method: "POST",     // HTTP method
+      path: "/my-path",   // Path (same as first parameter)
+    },
+    async (request) => { // Handler function
+      // Process request
+      return { success: true };
+    }
+  ),
+}
+```
+
+## Endpoint Merging
+
+When multiple plugins define endpoints, they are merged together:
+
+### Non-Conflicting Endpoints
+
+```typescript
+// Plugin 1
+endpoints: {
+  health: createEndpoint("/health", { method: "GET" }, async () => ({ status: "ok" })),
+}
+
+// Plugin 2  
+endpoints: {
+  status: createEndpoint("/status", { method: "GET" }, async () => ({ ready: true })),
+}
+
+// Result: Both /api/billing/health and /api/billing/status are available
+```
+
+### Conflicting Endpoints (Override)
+
+When multiple plugins define the same path, the later plugin overrides:
+
+```typescript
+// Plugin 1
+endpoints: {
+  test: createEndpoint("/test", { method: "GET" }, async () => "Hello from Plugin 1"),
+}
+
+// Plugin 2 (depends on Plugin 1)
+endpoints: {
+  test: createEndpoint("/test", { method: "GET" }, async () => "Hello from Plugin 2"), 
+}
+
+// Result: /api/billing/test returns "Hello from Plugin 2"
+```
+
+## Request Handling
+
+### Accessing Request Data
+
+```typescript
+createEndpoint(
+  "/process-data",
+  {
+    method: "POST",
+    path: "/process-data",
+  },
+  async (request) => {
+    // Get JSON body
+    const body = await request.json();
+    
+    // Get query parameters
+    const url = new URL(request.url);
+    const userId = url.searchParams.get('userId');
+    
+    // Get headers
+    const authHeader = request.headers.get('authorization');
+    
+    // Process the data
+    return { 
+      received: body,
+      userId,
+      authenticated: !!authHeader,
+    };
+  }
+)
+```
+
+### Response Types
+
+Endpoints can return various response types:
+
+```typescript
+// JSON response
+async () => {
+  return { message: "Success", data: { id: 1 } };
+}
+
+// Plain text response
+async () => {
+  return "Simple text response";
+}
+
+// Custom Response object
+async () => {
+  return new Response(JSON.stringify({ error: "Not found" }), {
+    status: 404,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+}
+```
+
+## Error Handling
+
+### Automatic Error Handling
+
+Better Billing automatically handles common errors:
+
+```typescript
+// If endpoint throws an error
+async () => {
+  throw new Error("Something went wrong");
+}
+
+// Automatically returns 500 status with error message
+```
+
+### Custom Error Responses
+
+```typescript
+async () => {
+  try {
+    // ... some operation
+  } catch (error) {
+    return new Response(
+      JSON.stringify({ error: "Custom error message" }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+}
+```
+
+### 404 Handling
+
+Requests to non-existent endpoints automatically return 404:
+
+```http
+GET /api/billing/non-existent-endpoint
+# Returns: 404 Not Found
+```
+
+## Security Considerations
+
+### Webhook Verification
+
+For webhook endpoints, always verify the request signature:
+
+```typescript
+createEndpoint(
+  "/secure-webhook",
+  {
+    method: "POST", 
+    path: "/secure-webhook",
+  },
+  async (request) => {
+    const signature = request.headers.get('webhook-signature');
+    const body = await request.text();
+    
+    // Verify signature against your webhook secret
+    if (!verifyWebhookSignature(signature, body, WEBHOOK_SECRET)) {
+      return new Response('Unauthorized', { status: 401 });
+    }
+    
+    // Process webhook
+    return { received: true };
+  }
+)
+```
+
+### Authentication
+
+Add authentication to your endpoints:
+
+```typescript
+createEndpoint(
+  "/protected-endpoint",
+  {
+    method: "GET",
+    path: "/protected-endpoint", 
+  },
+  async (request) => {
+    const authHeader = request.headers.get('authorization');
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return new Response('Unauthorized', { status: 401 });
+    }
+    
+    const token = authHeader.substring(7);
+    const user = await verifyToken(token);
+    
+    if (!user) {
+      return new Response('Invalid token', { status: 401 });
+    }
+    
+    return { message: `Hello ${user.name}` };
+  }
+)
+```
+
+## Testing Endpoints
+
+You can test endpoints directly using the API handler:
+
+```typescript
+import { billing } from './billing';
+
+// Test an endpoint
+const response = await billing.api.handler(
+  new Request('http://localhost/api/billing/health', {
+    method: 'GET',
+  })
+);
+
+console.log(response.status); // 200
+console.log(await response.json()); // { status: "ok", ... }
+```
+
+## Best Practices
+
+1. **Use descriptive endpoint paths** that clearly indicate their purpose
+2. **Handle errors gracefully** and return appropriate HTTP status codes
+3. **Verify webhook signatures** for security
+4. **Use consistent response formats** across your endpoints
+5. **Add authentication** to sensitive endpoints
+6. **Test your endpoints** thoroughly before deploying

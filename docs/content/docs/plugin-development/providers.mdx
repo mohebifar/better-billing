@@ -1,0 +1,463 @@
+---
+title: Provider Development
+description: Learn how to create custom payment providers and capabilities
+---
+
+# Provider Development
+
+This guide shows you how to create custom payment providers and add new capabilities to existing providers in Better Billing. Providers are the core way to add payment processing and billing functionality.
+
+## Provider Architecture
+
+Providers are organized by capabilities rather than provider names. This allows multiple plugins to extend the same provider with different capabilities.
+
+```typescript
+// Provider structure
+{
+  providerId: "stripe",           // Unique provider identifier
+  capability: "subscription",     // What this provider can do
+  methods: {                      // Available methods for this capability
+    createSubscription: async (params) => { /* ... */ },
+    cancelSubscription: async (params) => { /* ... */ },
+    // ... more methods
+  }
+}
+```
+
+## Built-in Capabilities
+
+Better Billing defines several standard capabilities:
+
+### Subscription Capability
+
+Methods for managing recurring subscriptions:
+
+```typescript
+interface SubscriptionCapability {
+  createSubscription(params: CreateSubscriptionParams): Promise<Subscription>;
+  cancelSubscription(params: CancelSubscriptionParams): Promise<void>;
+  updateSubscription(params: UpdateSubscriptionParams): Promise<Subscription>;
+  getSubscription(params: GetSubscriptionParams): Promise<Subscription>;
+}
+```
+
+### Checkout Session Capability
+
+Methods for creating payment sessions:
+
+```typescript
+interface CheckoutSessionCapability {
+  createCheckoutSession(params: CreateCheckoutParams): Promise<CheckoutSession>;
+  getCheckoutSession(params: GetCheckoutParams): Promise<CheckoutSession>;
+}
+```
+
+## Creating a Custom Provider
+
+Here's how to create a custom payment provider:
+
+```typescript
+import { createPlugin } from "better-billing";
+import { corePlugin } from "better-billing/plugins/core";
+
+const customPaymentPlugin = createPlugin(
+  (deps) => {
+    return {
+      providers: [
+        {
+          providerId: "custom-pay",
+          capability: "subscription" as const,
+          methods: {
+            createSubscription: async (params) => {
+              // Call your payment processor API
+              const response = await fetch("https://api.custompay.com/subscriptions", {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${process.env.CUSTOM_PAY_API_KEY}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  customerId: params.billableId,
+                  planId: params.planName,
+                  trialDays: params.trialDays,
+                }),
+              });
+
+              const subscription = await response.json();
+
+              // Save to database using Better Billing's database adapter
+              await deps.db.create("subscriptions", {
+                id: subscription.id,
+                billableId: params.billableId,
+                planName: params.planName,
+                status: "active",
+                providerId: "custom-pay",
+                providerSubscriptionId: subscription.id,
+                currentPeriodStart: new Date(subscription.currentPeriodStart),
+                currentPeriodEnd: new Date(subscription.currentPeriodEnd),
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+
+              return subscription;
+            },
+
+            cancelSubscription: async (params) => {
+              // Call API to cancel subscription
+              await fetch(`https://api.custompay.com/subscriptions/${params.subscriptionId}`, {
+                method: "DELETE",
+                headers: {
+                  "Authorization": `Bearer ${process.env.CUSTOM_PAY_API_KEY}`,
+                },
+              });
+
+              // Update database
+              await deps.db.update("subscriptions", params.subscriptionId, {
+                status: "canceled",
+                updatedAt: new Date(),
+              });
+            },
+
+            updateSubscription: async (params) => {
+              // Implementation for updating subscription
+              const response = await fetch(`https://api.custompay.com/subscriptions/${params.subscriptionId}`, {
+                method: "PATCH",
+                headers: {
+                  "Authorization": `Bearer ${process.env.CUSTOM_PAY_API_KEY}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  planId: params.planName,
+                }),
+              });
+
+              const subscription = await response.json();
+              
+              // Update database
+              await deps.db.update("subscriptions", params.subscriptionId, {
+                planName: params.planName,
+                updatedAt: new Date(),
+              });
+
+              return subscription;
+            },
+
+            getSubscription: async (params) => {
+              // Fetch from database or API
+              const subscription = await deps.db.findFirst("subscriptions", {
+                id: params.subscriptionId,
+              });
+
+              return subscription;
+            },
+          },
+        },
+      ],
+    };
+  },
+  {
+    dependsOn: [corePlugin] as const,
+  }
+);
+```
+
+## Adding Capabilities to Existing Providers
+
+You can extend existing providers with new capabilities:
+
+```typescript
+const stripeExtensionPlugin = createPlugin(
+  (deps) => {
+    return {
+      providers: [
+        {
+          providerId: "stripe", // Same provider ID
+          capability: "usage-tracking" as const, // New capability
+          methods: {
+            trackUsage: async (params) => {
+              // Add usage tracking to Stripe
+              const stripe = deps.stripe; // Access Stripe from dependencies
+              
+              await stripe.subscriptionItems.createUsageRecord(
+                params.subscriptionItemId,
+                {
+                  quantity: params.quantity,
+                  timestamp: params.timestamp,
+                }
+              );
+            },
+
+            getUsage: async (params) => {
+              // Get usage data from Stripe
+              const usage = await stripe.subscriptionItems.listUsageRecordSummaries(
+                params.subscriptionItemId
+              );
+
+              return usage.data;
+            },
+          },
+        },
+      ],
+    };
+  },
+  {
+    dependsOn: [corePlugin, stripePlugin] as const,
+  }
+);
+```
+
+## Provider Method Patterns
+
+### Standard Parameters
+
+Most provider methods follow common parameter patterns:
+
+```typescript
+// Billable entity identification
+interface BillableParams {
+  billableId: string;    // ID of the entity being billed
+  billableType: string;  // Type of entity ("user", "organization", etc.)
+}
+
+// Subscription parameters
+interface SubscriptionParams extends BillableParams {
+  planName: string;      // Must match configured plan names
+  trialDays?: number;    // Optional trial period
+  metadata?: Record<string, string>; // Additional data
+}
+```
+
+### Error Handling
+
+Always handle errors appropriately in provider methods:
+
+```typescript
+methods: {
+  createSubscription: async (params) => {
+    try {
+      // API call
+      const response = await paymentAPI.createSubscription(params);
+      
+      if (!response.ok) {
+        throw new Error(`Payment API error: ${response.status}`);
+      }
+      
+      // Database operation
+      await deps.db.create("subscriptions", subscriptionData);
+      
+      return response.data;
+    } catch (error) {
+      // Log error for debugging
+      console.error("Failed to create subscription:", error);
+      
+      // Re-throw with user-friendly message
+      throw new Error("Unable to create subscription. Please try again.");
+    }
+  },
+}
+```
+
+### Async Operations
+
+All provider methods should be async and handle database transactions properly:
+
+```typescript
+methods: {
+  createSubscription: async (params) => {
+    // Use database transactions for consistency
+    return await deps.db.transaction(async (tx) => {
+      // Create customer if needed
+      const customer = await tx.findOrCreate("customers", {
+        externalId: params.billableId,
+        type: params.billableType,
+      });
+
+      // Create subscription
+      const subscription = await tx.create("subscriptions", {
+        billableId: customer.id,
+        planName: params.planName,
+        // ... other fields
+      });
+
+      return subscription;
+    });
+  },
+}
+```
+
+## Type Safety
+
+Better Billing provides full TypeScript support for provider development:
+
+```typescript
+import type { 
+  CreateSubscriptionParams,
+  Subscription,
+  BillingContext 
+} from "better-billing";
+
+const myPlugin = createPlugin(
+  (deps: BillingContext) => {
+    return {
+      providers: [
+        {
+          providerId: "my-provider",
+          capability: "subscription" as const,
+          methods: {
+            // Fully typed parameters and return values
+            createSubscription: async (params: CreateSubscriptionParams): Promise<Subscription> => {
+              // Implementation
+            },
+          },
+        },
+      ],
+    };
+  },
+  {
+    dependsOn: [corePlugin] as const,
+  }
+);
+```
+
+## Testing Providers
+
+Create comprehensive tests for your provider methods:
+
+```typescript
+import { describe, it, expect, vi } from "vitest";
+import { createTestBilling } from "better-billing/testing";
+
+describe("Custom Payment Provider", () => {
+  it("should create subscription", async () => {
+    const billing = createTestBilling({
+      plugins: [corePlugin({}), customPaymentPlugin],
+    });
+
+    const subscription = await billing.providers["custom-pay"].createSubscription({
+      billableId: "user_123",
+      billableType: "user",
+      planName: "Pro",
+    });
+
+    expect(subscription.planName).toBe("Pro");
+    expect(subscription.status).toBe("active");
+  });
+
+  it("should handle API errors gracefully", async () => {
+    // Mock API failure
+    vi.mocked(fetch).mockRejectedValueOnce(new Error("API Error"));
+
+    const billing = createTestBilling({
+      plugins: [corePlugin({}), customPaymentPlugin],
+    });
+
+    await expect(
+      billing.providers["custom-pay"].createSubscription({
+        billableId: "user_123",
+        billableType: "user", 
+        planName: "Pro",
+      })
+    ).rejects.toThrow("Unable to create subscription");
+  });
+});
+```
+
+## Best Practices
+
+1. **Follow Standard Interfaces**: Use established capability interfaces when possible
+2. **Handle Errors Gracefully**: Provide meaningful error messages to users
+3. **Use Database Transactions**: Ensure data consistency in multi-step operations
+4. **Type Everything**: Leverage TypeScript for better development experience
+5. **Test Thoroughly**: Write tests for success cases, error cases, and edge cases
+6. **Document Methods**: Add JSDoc comments for complex provider methods
+7. **Validate Input**: Always validate parameters before making API calls
+
+## Common Patterns
+
+### Webhook Handler Integration
+
+Combine providers with webhook endpoints:
+
+```typescript
+const webhookProviderPlugin = createPlugin(
+  (deps) => {
+    return {
+      providers: [
+        {
+          providerId: "webhook-provider",
+          capability: "subscription",
+          methods: {
+            // ... subscription methods
+          },
+        },
+      ],
+      endpoints: {
+        webhook: createEndpoint("/webhook-provider/webhook", {
+          method: "POST",
+          path: "/webhook-provider/webhook",
+        }, async (request) => {
+          const payload = await request.json();
+          
+          // Process webhook and update database
+          await deps.db.update("subscriptions", payload.subscriptionId, {
+            status: payload.status,
+          });
+
+          return { received: true };
+        }),
+      },
+    };
+  },
+  {
+    dependsOn: [corePlugin] as const,
+  }
+);
+```
+
+### Configuration-Driven Providers
+
+Accept configuration options:
+
+```typescript
+const configurablePlugin = (config: { apiKey: string; baseUrl: string }) =>
+  createPlugin(
+    (deps) => {
+      return {
+        providers: [
+          {
+            providerId: "configurable",
+            capability: "subscription",
+            methods: {
+              createSubscription: async (params) => {
+                const response = await fetch(`${config.baseUrl}/subscriptions`, {
+                  headers: { "Authorization": `Bearer ${config.apiKey}` },
+                  // ... rest of implementation
+                });
+              },
+            },
+          },
+        ],
+      };
+    },
+    {
+      dependsOn: [corePlugin] as const,
+    }
+  );
+
+// Usage
+const billing = betterBilling({
+  plugins: [
+    corePlugin({}),
+    configurablePlugin({
+      apiKey: process.env.API_KEY!,
+      baseUrl: "https://api.example.com",
+    }),
+  ],
+});
+```
+
+## Next Steps
+
+- [Schema Development](/docs/plugin-development/schema) - Define custom database schemas
+- [API Endpoints](/docs/plugin-development/api-endpoints) - Create webhook handlers
+- [Plugin Examples](/docs/plugin-development/examples) - See complete plugin implementations

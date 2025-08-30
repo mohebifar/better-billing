@@ -1,0 +1,212 @@
+---
+title: Stripe Plugin
+description: Stripe payment processing integration
+icon: CreditCard
+---
+
+The Stripe plugin adds Stripe payment processing capabilities to Better Billing.
+
+## Installation
+
+```typescript
+import { stripePlugin } from "better-billing/plugins/stripe";
+import Stripe from "stripe";
+```
+
+## Setup
+
+```typescript
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+
+const plugin = stripePlugin({
+  stripe,
+  subscriptionPlans: {
+    monthly: [
+      { planName: "Pro", items: [{ price: "price_pro_monthly" }] },
+      { planName: "Enterprise", items: [{ price: "price_enterprise_monthly" }] },
+    ],
+    yearly: [
+      { planName: "Pro", items: [{ price: "price_pro_yearly" }] },
+      { planName: "Enterprise", items: [{ price: "price_enterprise_yearly" }] },
+    ],
+  },
+  postSuccessUrl: "https://app.com/dashboard?success=true",
+  postCancelUrl: "https://app.com/pricing",
+  webhookEndpointSecret: process.env.STRIPE_WEBHOOK_SECRET!,
+});
+```
+
+## Configuration Options
+
+### Required Options
+
+```typescript
+stripePlugin({
+  stripe: stripeInstance,                    // Stripe SDK instance
+  webhookEndpointSecret: "whsec_...",       // Webhook signing secret
+
+  // Checkout session post success and post cancel URLs
+  // You do not need to handle the checkout verification, the plugin will do it for you.
+  // This is just for redirecting the user to a frontend page post-checkout. Usually a billing settings page
+  postSuccessUrl: "https://app.com/success",
+  postCancelUrl: "https://app.com/cancel",
+})
+```
+
+### Subscription Plans
+
+Map your core plans to Stripe prices:
+
+```typescript
+subscriptionPlans: {
+  monthly: [
+    { 
+      planName: "Basic",  // Must match core plugin plan name
+      items: [{ 
+        price: "price_basic_monthly",  // Stripe price ID
+        quantity: 1 
+      }] 
+    },
+    { 
+      planName: "Pro", 
+      items: [
+        { price: "price_pro_base_monthly", quantity: 1 },
+        { price: "price_pro_addon_monthly", quantity: 5 },
+      ] 
+    },
+  ],
+  yearly: [
+    { planName: "Basic", items: [{ price: "price_basic_yearly" }] },
+    { planName: "Pro", items: [{ price: "price_pro_yearly" }] },
+  ],
+}
+```
+
+### Customer Portal
+
+Configure Stripe's customer portal:
+
+```typescript
+stripePlugin({
+  // ... other config
+  customerPortal: {
+    enabled: true,
+    returnUrl: "https://app.com/account",
+  },
+})
+```
+
+## Provider Methods
+
+Access Stripe functionality through the provider:
+
+### Create Checkout Session
+
+```typescript
+const session = await billing.providers.stripe.startSubscriptionCheckout({
+  billableId: "user_123",
+  billableType: "user",
+  planName: "Pro",
+  cadence: "monthly",
+  email: "user@example.com",
+  successUrl: "https://app.com/success", // Optional override
+  cancelUrl: "https://app.com/cancel",   // Optional override
+});
+
+// Redirect user to session.url
+```
+
+### Customer Portal
+
+```typescript
+const portalSession = await billing.providers.stripe.createCustomerPortalSession({
+  billableId: "user_123",
+  billableType: "user",
+  returnUrl: "https://app.com/account",
+});
+
+// Redirect user to portalSession.url
+```
+
+### Usage Tracking
+
+```typescript
+// Record usage for usage-based billing
+await billing.providers.stripe.recordUsage({
+  subscriptionItemId: "si_...",
+  quantity: 100,
+  timestamp: new Date(),
+});
+```
+
+## API Endpoints
+
+The Stripe plugin automatically creates these endpoints:
+
+- `POST /api/billing/stripe/webhook` - Handles Stripe webhook events
+- `GET /api/billing/stripe/checkout-session/success` - Handles checkout session success requests
+- `GET /api/billing/stripe/checkout-session/cancel` - Handles checkout session cancel requests
+
+## Webhook Setup
+
+1. Go to your [Stripe Dashboard](https://dashboard.stripe.com/webhooks)
+2. Click "Add endpoint"
+3. Enter your webhook URL: `https://yourdomain.com/api/billing/stripe/webhook`
+4. Select events or choose "Select all events" for full functionality
+5. Copy the webhook signing secret to your environment variables and use it in the Stripe plugin configuration.
+
+## Usage with Core Plugin
+
+The Stripe plugin requires the core plugin:
+
+```typescript
+const billing = betterBilling({
+  plugins: [
+    // Core plugin defines business plans
+    corePlugin({
+      subscriptionPlans: [
+        { planName: "Basic" },
+        { planName: "Pro", trialDays: 7 },
+      ],
+    }),
+    
+    // Stripe plugin maps plans to Stripe prices
+    stripePlugin({
+      stripe,
+      subscriptionPlans: {
+        monthly: [
+          { planName: "Basic", items: [{ price: "price_basic_monthly" }] },
+          { planName: "Pro", items: [{ price: "price_pro_monthly" }] },
+        ],
+      },
+      webhookEndpointSecret: process.env.STRIPE_WEBHOOK_SECRET!,
+      postSuccessUrl: "https://app.com/dashboard",
+      postCancelUrl: "https://app.com/pricing",
+    }),
+  ] as const,
+});
+```
+
+## TypeScript Support
+
+The Stripe plugin provides full type safety:
+
+```typescript
+// Plan names and cadences are typed
+const session = await billing.providers.stripe.startSubscriptionCheckout({
+  planName: "Pro",        // Must match configured plans
+  cadence: "monthly",     // "monthly" | "yearly"
+  billableType: "user",   // Typed based on your configuration
+});
+```
+
+## Prerequisites
+
+Before using the Stripe plugin:
+
+1. Create a Stripe account
+2. Set up your products and prices in Stripe Dashboard
+3. Configure webhook endpoint
+4. Set environment variables
+
+For detailed setup instructions, see the [Stripe Setup guide](/docs/stripe-setup).

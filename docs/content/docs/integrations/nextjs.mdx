@@ -1,0 +1,53 @@
+---
+title: Next.js Integration
+description: Set up Better Billing with Next.js App Router and Pages Router
+icon: Nextjs
+---
+
+## App Router (Recommended)
+
+Create a catch-all API route:
+
+```typescript
+// app/api/billing/[...path]/route.ts
+import { billing } from "@/lib/billing";
+import { toNextJsHandler } from "better-billing/integrations/next-js";
+
+const handler = toNextJsHandler(billing.api);
+
+export const { GET, POST, PUT, DELETE, PATCH } = handler;
+```
+
+## Pages Router
+
+```typescript
+// pages/api/billing/[...path].ts
+import { billing } from "@/lib/billing";
+import { toNodeHandler } from "better-billing/integrations/node";
+
+export const config = { api: { bodyParser: false } };
+
+export default toNodeHandler(billing.api);
+```
+
+## Configuration
+
+```typescript
+// lib/billing.ts
+import { betterBilling } from "better-billing";
+import { corePlugin } from "better-billing/plugins/core";
+import { stripePlugin } from "better-billing/plugins/stripe";
+
+export const billing = betterBilling({
+  plugins: [
+    corePlugin({ ... }),
+    stripePlugin({ ... }),
+  ],
+});
+```
+
+## Webhook URL
+
+```
+https://yourdomain.com/api/billing/stripe/webhook
+```

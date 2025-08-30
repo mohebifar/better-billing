@@ -1,0 +1,74 @@
+---
+title: Node.js / Express Integration
+description: Set up Better Billing with Node.js and Express
+icon: Nodejs
+---
+
+Better Billing works with any Node.js server or Express application.
+
+## Express Setup
+
+```typescript
+import express from 'express';
+import { billing } from './billing';
+import { toNodeHandler } from "better-billing/integrations/node";
+
+const app = express();
+
+// Mount Better Billing at /api/billing
+app.use('/api/billing', toNodeHandler(billing.api));
+
+app.listen(3000, () => {
+  console.log('Server running on http://localhost:3000');
+});
+```
+
+## Raw Node.js
+
+```typescript
+import { createServer } from 'http';
+import { billing } from './billing';
+
+const server = createServer(async (req, res) => {
+  if (req.url?.startsWith('/api/billing/')) {
+    const request = new Request(`http://localhost:3000${req.url}`, {
+      method: req.method,
+      headers: req.headers as HeadersInit,
+      body: req.method !== 'GET' ? req : undefined,
+    });
+    
+    const response = await billing.api.handler(request);
+    
+    res.writeHead(response.status, Object.fromEntries(response.headers));
+    res.end(await response.text());
+    return;
+  }
+  
+  res.writeHead(404);
+  res.end('Not Found');
+});
+
+server.listen(3000);
+```
+
+## Configuration
+
+```typescript
+// billing.ts
+import { betterBilling } from "better-billing";
+import { corePlugin } from "better-billing/plugins/core";
+import { stripePlugin } from "better-billing/plugins/stripe";
+
+export const billing = betterBilling({
+  plugins: [
+    corePlugin({ ... }),
+    stripePlugin({ ... }),
+  ],
+});
+```
+
+## Webhook URL
+
+```
+http://localhost:3000/api/billing/stripe/webhook
+```

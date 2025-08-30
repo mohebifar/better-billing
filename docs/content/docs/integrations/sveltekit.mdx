@@ -1,0 +1,109 @@
+---
+title: SvelteKit Integration
+description: Set up Better Billing with SvelteKit using API routes or hooks middleware
+icon: Sveltekit
+---
+
+Better Billing offers two integration approaches for SvelteKit.
+
+## Option 1: API Route
+
+```typescript
+// src/routes/api/billing/[...path]/+server.ts
+import { billing } from "$lib/billing";
+import { toSvelteKitHandler } from "better-billing/integrations/svelte-kit";
+
+const handler = toSvelteKitHandler(billing.api);
+
+export const GET = handler;
+export const POST = handler;
+export const PUT = handler;
+export const DELETE = handler;
+export const PATCH = handler;
+```
+
+## Option 2: Hooks Middleware (Recommended)
+
+```typescript
+// src/hooks.server.ts
+import { billing } from "$lib/billing";
+import { svelteKitHandler } from "better-billing/integrations/svelte-kit";
+import type { Handle } from "@sveltejs/kit";
+
+export const handle: Handle = async ({ event, resolve }) => {
+  return svelteKitHandler({
+    billing: {
+      handler: billing.api.handler,
+      options: { basePath: "/api/billing" },
+    },
+    event,
+    resolve,
+    building: false,
+  });
+};
+```
+
+## Configuration
+
+```typescript
+// src/lib/billing.ts
+import { betterBilling } from "better-billing";
+import { corePlugin } from "better-billing/plugins/core";
+import { stripePlugin } from "better-billing/plugins/stripe";
+
+export const billing = betterBilling({
+  plugins: [
+    corePlugin({ ... }),
+    stripePlugin({ ... }),
+  ],
+});
+```
+
+## Webhook URL
+
+```
+https://yourdomain.com/api/billing/stripe/webhook
+```
+
+## Load Functions
+
+Use SvelteKit's load functions:
+
+```typescript
+// src/routes/dashboard/+page.server.ts
+import { billing } from "$lib/billing";
+
+export const load: PageServerLoad = async ({ locals }) => {
+  const userId = locals.user?.id;
+  
+  return {
+    subscriptions: await billing.providers.core.getBillableActiveSubscriptions({
+      billableId: userId,
+      billableType: "user",
+    })
+  };
+};
+```
+
+## Form Actions
+
+```typescript
+// src/routes/subscribe/+page.server.ts
+import { billing } from "$lib/billing";
+import { fail } from "@sveltejs/kit";
+
+export const actions = {
+  subscribe: async ({ request, locals }) => {
+    const data = await request.formData();
+    
+    try {
+      return { subscription: await billing.providers.core.getBillableActiveSubscriptions({
+        billableId: locals.user.id,
+        billableType: "user",
+      })};
+    } catch (error) {
+      return fail(400, { error: error.message });
+    }
+  }
+};
+```

@@ -19,20 +19,23 @@ import type { ExtractSchemaFromPlugins } from "./types/schema-types";
 export * from "./plugin-factory";
 
 interface BetterBillingOptions<
-  DBAdapter extends DatabaseAdapter<any, any>,
   Plugins extends readonly PluginFactoryContainer<any, any>[]
 > {
-  adapter: DBAdapter;
+  adapter: DatabaseAdapter<
+    MergeSchemas<
+      ExtractSchemaFromPlugins<InferPluginFromFactoryContainerArray<Plugins>>
+    >,
+    any
+  >;
   plugins: Plugins;
   basePath?: string;
   serverUrl: string;
 }
 
 export const betterBilling = <
-  DBAdapter extends DatabaseAdapter<any, any>,
   const Plugins extends readonly PluginFactoryContainer<any, any>[]
 >(
-  options: BetterBillingOptions<DBAdapter, Plugins>
+  options: BetterBillingOptions<Plugins>
 ) => {
   const { plugins: pluginFactories } = options;
 

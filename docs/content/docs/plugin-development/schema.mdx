@@ -1,0 +1,348 @@
+---
+title: Schema Management
+description: Understanding Better Billing's database schema system and customization options
+---
+
+# Schema Management
+
+Better Billing uses a flexible schema system that allows plugins to define and extend database schemas. The system supports schema merging, field overrides, and database customization.
+
+## How Schema Works
+
+### Plugin Schema Definition
+
+Plugins define database schemas using Zod objects:
+
+```typescript
+import { createPlugin } from "better-billing";
+import { z } from "zod";
+
+const myPlugin = createPlugin(
+  () => {
+    return {
+      schema: {
+        customers: z.object({
+          id: z.string(),
+          email: z.string().email(),
+          name: z.string().optional(),
+          createdAt: z.date(),
+        }),
+        subscriptions: z.object({
+          id: z.string(),
+          customerId: z.string(),
+          status: z.string(),
+          planName: z.string(),
+          createdAt: z.date(),
+        }),
+      },
+    };
+  },
+  { dependsOn: [] as const }
+);
+```
+
+### Schema Merging
+
+When multiple plugins define schemas, they are automatically merged:
+
+```typescript
+// Plugin 1 defines base fields
+const plugin1 = createPlugin(() => ({
+  schema: {
+    subscriptions: z.object({
+      id: z.string(),
+      status: z.string(),
+    }),
+  },
+}), { dependsOn: [] as const });
+
+// Plugin 2 adds additional fields  
+const plugin2 = createPlugin(() => ({
+  schema: {
+    subscriptions: z.object({
+      metadata: z.record(z.string()),
+      updatedAt: z.date(),
+    }),
+  },
+}), { dependsOn: [plugin1] as const });
+
+// Result: subscriptions table has id, status, metadata, AND updatedAt
+```
+
+### Field Override
+
+Later plugins can override field types from earlier plugins:
+
+```typescript
+// Plugin 1 defines field as string
+const plugin1 = createPlugin(() => ({
+  schema: {
+    subscriptions: z.object({
+      amount: z.string(),
+    }),
+  },
+}), { dependsOn: [] as const });
+
+// Plugin 2 overrides to number
+const plugin2 = createPlugin(() => ({
+  schema: {
+    subscriptions: z.object({
+      amount: z.number(),
+    }),
+  },
+}), { dependsOn: [plugin1] as const });
+
+// Result: amount field is a number (Plugin 2 wins)
+```
+
+## Core Schema
+
+The core plugin provides essential billing schema out of the box:
+
+### Billables (Polymorphic Entities)
+Any entity that can be billed:
+```typescript
+{
+  id: string,
+  type: string,           // "user", "organization", "team", etc.
+  externalId: string,     // Reference to your existing entities
+  name?: string,
+  email?: string,
+  metadata?: Record<string, string>,
+}
+```
+
+### Subscriptions
+Links billables to plans:
+```typescript
+{
+  id: string,
+  billableId: string,     // References billables table
+  planName: string,       // References configured plans
+  status: string,         // "active", "canceled", "past_due", etc.
+  providerId: string,     // "stripe", "paddle", etc.
+  providerSubscriptionId: string,
+  currentPeriodStart: Date,
+  currentPeriodEnd: Date,
+  trialStart?: Date,
+  trialEnd?: Date,
+  createdAt: Date,
+  updatedAt: Date,
+}
+```
+
+### Payment Methods
+Stored payment information:
+```typescript
+{
+  id: string,
+  billableId: string,
+  type: string,           // "card", "bank_account", etc.
+  brand?: string,         // "visa", "mastercard", etc. 
+  lastFour?: string,
+  expiryMonth?: number,
+  expiryYear?: number,
+  isDefault: boolean,
+  providerId: string,
+  providerPaymentMethodId: string,
+}
+```
+
+## Database Generation
+
+### Getting Merged Schema
+
+Access the final merged schema:
+
+```typescript
+const billing = betterBilling({
+  adapter: drizzleAdapter(db, { provider: "pg", schema: {} }),
+  plugins: [corePlugin({}), stripePlugin({...})],
+});
+
+const mergedSchema = billing.getMergedSchema();
+```
+
+### Generating Database Schema
+
+Convert the merged schema to database-specific format:
+
+```typescript
+import { generateDrizzleSchema } from "@better-billing/db/generators/drizzle";
+
+const mergedSchema = billing.getMergedSchema();
+const drizzleSchema = generateDrizzleSchema(mergedSchema, adapter);
+
+console.log(drizzleSchema);
+// Outputs the actual Drizzle schema code:
+// export const subscriptions = pgTable("subscriptions", {
+//   id: varchar("id").notNull(),
+//   status: varchar("status").notNull(),
+//   ...
+// });
+```
+
+## Schema Customization
+
+### Table Name Mapping
+
+Map Better Billing tables to your existing database tables:
+
+```typescript
+const billing = betterBilling({
+  adapter: drizzleAdapter(db, {
+    provider: "pg",
+    schema: {},
+    // Map Better Billing tables to your existing tables
+    tableNames: {
+      subscription: "user_subscriptions",
+      customer: "users", 
+      paymentMethod: "user_payment_methods",
+    },
+  }),
+  // ...
+});
+```
+
+### Field Name Mapping
+
+Map Better Billing fields to your existing column names:
+
+```typescript
+const billing = betterBilling({
+  adapter: drizzleAdapter(db, {
+    provider: "pg", 
+    schema: {},
+    fieldNames: {
+      subscription: {
+        billableId: "user_id",
+        providerId: "payment_provider",
+        createdAt: "created_timestamp",
+      },
+      customer: {
+        externalId: "id", // Map to your existing user ID column
+      },
+    },
+  }),
+  // ...
+});
+```
+
+## Working with Existing Databases
+
+### Integration with Existing Schema
+
+Better Billing can work with your existing database schema:
+
+```typescript
+// Your existing Drizzle schema
+const existingSchema = {
+  users: pgTable("users", {
+    id: text("id").primaryKey(),
+    email: text("email").notNull(),
+    name: text("name"),
+    // ... other user fields
+  }),
+  organizations: pgTable("organizations", {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    // ... other org fields
+  }),
+};
+
+// Use with Better Billing
+const billing = betterBilling({
+  adapter: drizzleAdapter(db, {
+    provider: "pg",
+    schema: existingSchema, // Include your existing schema
+    tableNames: {
+      customer: "users", // Map customer to existing users table
+    },
+  }),
+  // ...
+});
+```
+
+### Extending Existing Tables
+
+Add billing fields to existing tables through schema merging:
+
+```typescript
+const billingExtensionPlugin = createPlugin(
+  () => ({
+    schema: {
+      users: z.object({
+        // Add billing-specific fields to existing users table
+        stripeCustomerId: z.string().optional(),
+        subscriptionTier: z.string().optional(), 
+        trialEndsAt: z.date().optional(),
+      }),
+    },
+  }),
+  { dependsOn: [corePlugin] as const }
+);
+```
+
+## Schema Validation
+
+### Zod Field Types
+
+Better Billing supports all Zod field types:
+
+```typescript
+schema: {
+  myTable: z.object({
+    // Strings
+    id: z.string(),
+    name: z.string().optional(),
+    email: z.string().email(),
+    
+    // Numbers  
+    amount: z.number(),
+    count: z.number().int().positive(),
+    
+    // Dates
+    createdAt: z.date(),
+    expiresAt: z.date().optional(),
+    
+    // Booleans
+    isActive: z.boolean(),
+    
+    // Objects/Records
+    metadata: z.record(z.string()),
+    settings: z.object({
+      theme: z.string(),
+      notifications: z.boolean(),
+    }),
+    
+    // Enums
+    status: z.enum(["active", "inactive", "pending"]),
+  }),
+}
+```
+
+### Runtime Validation
+
+Schemas provide runtime validation when inserting/updating data:
+
+```typescript
+// Data is automatically validated against the schema
+await billing.database.create("subscriptions", {
+  id: "sub_123",
+  billableId: "user_123", 
+  planName: "Pro",
+  status: "active",
+  // ... other fields
+});
+
+// Invalid data will throw validation errors
+```
+
+## Best Practices
+
+1. **Define schemas in plugins** to keep them organized and reusable
+2. **Use meaningful field names** that match your domain terminology
+3. **Leverage schema merging** to extend functionality without breaking changes
+4. **Map to existing tables** when integrating with existing databases  
+5. **Use optional fields** for backward compatibility when extending schemas
+6. **Validate data types** carefully to prevent runtime errors

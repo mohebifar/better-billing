@@ -1,0 +1,122 @@
+---
+title: Core Plugin
+description: Essential billing functionality and schema
+icon: Database
+---
+
+The core plugin provides essential billing functionality and database schema. **This plugin is required** for every Better Billing setup.
+
+## Installation
+
+```typescript
+import { corePlugin } from "better-billing/plugins/core";
+```
+
+## Basic Setup
+
+```typescript
+const plugin = corePlugin({
+  subscriptionPlans: [
+    {
+      planName: "Free",
+    },
+    {
+      planName: "Pro",
+      trialDays: 7,
+      features: ["api_access", "support"],
+    },
+    {
+      planName: "Enterprise",
+      trialDays: 14,
+      features: ["api_access", "support", "custom_integration"],
+    },
+  ],
+});
+```
+
+## Configuration Options
+
+### Subscription Plans
+
+Define your business plans:
+
+```typescript
+corePlugin({
+  subscriptionPlans: [
+    {
+      planName: "Free",           // Plan identifier (required)
+      trialDays: 0,              // Free trial period (optional)
+      features: [],              // Plan features (optional)
+    },
+    {
+      planName: "Pro",
+      trialDays: 7,
+      features: ["api_access", "support"],
+    },
+  ],
+});
+```
+
+### Database Integration
+
+The core plugin works with your existing database schema:
+
+```typescript
+const billing = betterBilling({
+  adapter: drizzleAdapter(db, {
+    provider: "pg",
+    schema, // Your existing Drizzle schema
+    
+    // Optional: Map Better Billing tables to existing tables
+    schemaMapping: {
+      subscription: {
+        // Customize the model name in your own schema
+        model: "plan_subscription",
+        fields: {
+          // Customize the field name in your own schema
+          providerId: "provider_subscription_id",
+        },
+      },
+    },
+  }),
+  plugins: [corePlugin({ ... })],
+});
+```
+
+## What It Provides
+
+### Database Schema
+
+- **Billables** - Billable entities information
+    - A billable is a representation of a user, organization, team, or any other entity that can be billed.
+    - It has a polymorphic relationship to the billable entity.
+- **Subscriptions** - Active subscription records
+- **Payment Methods** - Stored payment method details
+- **Invoices** - Invoice tracking and status
+
+### Provider Methods
+
+Access core functionality through the provider:
+
+```typescript
+// Get active subscriptions
+const subscriptions = await billing.providers.core.getBillableActiveSubscriptions({
+  billableId: "user_123",
+  billableType: "user",
+});
+```
+
+## Required Usage
+
+Every Better Billing setup must include the core plugin:
+
+```typescript
+const billing = betterBilling({
+  plugins: [
+    corePlugin({ ... }), // Always required first
+    // ... other plugins
+  ] as const,
+});
+```
+
+The core plugin must be the first plugin in the array as other plugins depend on its schema and functionality.

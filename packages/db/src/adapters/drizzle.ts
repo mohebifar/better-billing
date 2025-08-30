@@ -28,7 +28,7 @@ type DrizzleDb = PgliteDatabase<Record<string, unknown>>;
 
 export interface DrizzleDB extends DrizzleDb {}
 
-export interface DrizzleAdapterConfig {
+export interface DrizzleAdapterConfig<T extends SchemaDefinition> {
   /**
    * The drizzle schema object that defines the tables and fields
    */
@@ -53,13 +53,13 @@ export interface DrizzleAdapterConfig {
   /**
    * The schema mapping
    */
-  schemaMapping?: SchemaMapping<SchemaDefinition>;
+  schemaMapping?: SchemaMapping<T>;
 }
 
-export function drizzleAdapter(
+export function drizzleAdapter<T extends SchemaDefinition>(
   db: DrizzleDB,
-  config: DrizzleAdapterConfig
-): DatabaseAdapter<SchemaDefinition, DrizzleAdapterConfig> {
+  config: DrizzleAdapterConfig<T>
+): DatabaseAdapter<SchemaDefinition, DrizzleAdapterConfig<T>> {
   const { schema, schemaMapping } = config;
 
   const getSchema = (model: ModelNames<SchemaDefinition>) => {

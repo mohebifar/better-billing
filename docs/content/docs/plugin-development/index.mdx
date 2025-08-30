@@ -1,0 +1,245 @@
+---
+title: Plugin Development
+description: Learn how to create custom plugins for Better Billing
+icon: Code
+---
+
+# Plugin Development
+
+Better Billing's power comes from its plugin system. Plugins allow you to extend functionality, add new payment providers, create custom schemas, and build API endpoints.
+
+## Plugin Architecture
+
+Every plugin is created using the `createPlugin` factory function with two key components:
+
+```typescript
+import { createPlugin } from "better-billing";
+
+const myPlugin = createPlugin(
+  (deps) => {
+    // Plugin implementation
+    return {
+      schema?: { ... },      // Database schema definitions
+      providers?: [...],     // Payment provider implementations
+      endpoints?: { ... },   // API endpoint definitions
+    };
+  },
+  {
+    dependsOn: [otherPlugin] as const  // Plugin dependencies
+  }
+);
+```
+
+### What Plugins Can Do
+
+- **Define Schemas**: Create or extend database tables
+- **Implement Providers**: Add payment processors or custom capabilities
+- **Create API Endpoints**: Handle webhooks, custom logic, or integrations
+- **Extend Existing Functionality**: Modify or enhance other plugins
+
+## Plugin Types
+
+### Core Plugin
+- **Purpose**: Provides foundational schema and core billing concepts
+- **Dependencies**: None (base plugin)
+- **Exports**: Essential database schemas (subscriptions, customers, etc.)
+- **Required**: Every Better Billing setup must include the core plugin
+
+### Provider Plugins
+- **Purpose**: Implement specific payment provider integrations
+- **Dependencies**: Typically depends on core plugin
+- **Examples**: Stripe plugin, PayPal plugin, etc.
+- **Exports**: Provider implementations, webhooks, API endpoints
+
+### Custom Plugins
+- **Purpose**: Add business-specific functionality
+- **Examples**: Usage tracking, custom billing rules, integrations
+- **Can combine**: Schema, providers, and endpoints as needed
+
+## Development Guides
+
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+  <div className="border rounded-lg p-4">
+    <h3 className="font-semibold mb-2">Schema Development</h3>
+    <p className="text-sm text-gray-600 mb-3">Learn how to define and extend database schemas using Zod objects.</p>
+    <a href="/docs/plugin-development/schema" className="text-blue-600 hover:text-blue-800 text-sm">Read Schema Guide →</a>
+  </div>
+
+  <div className="border rounded-lg p-4">
+    <h3 className="font-semibold mb-2">Provider Development</h3>
+    <p className="text-sm text-gray-600 mb-3">Create custom payment providers and capabilities.</p>
+    <a href="/docs/plugin-development/providers" className="text-blue-600 hover:text-blue-800 text-sm">Read Provider Guide →</a>
+  </div>
+
+  <div className="border rounded-lg p-4">
+    <h3 className="font-semibold mb-2">API Endpoints</h3>
+    <p className="text-sm text-gray-600 mb-3">Build custom HTTP endpoints for webhooks and integrations.</p>
+    <a href="/docs/plugin-development/api-endpoints" className="text-blue-600 hover:text-blue-800 text-sm">Read Endpoints Guide →</a>
+  </div>
+
+  <div className="border rounded-lg p-4">
+    <h3 className="font-semibold mb-2">Plugin Examples</h3>
+    <p className="text-sm text-gray-600 mb-3">See real-world examples and common patterns.</p>
+    <a href="/docs/plugin-development/examples" className="text-blue-600 hover:text-blue-800 text-sm">View Examples →</a>
+  </div>
+</div>
+
+## Basic Plugin Structure
+
+Here's a simple plugin that adds a custom schema and endpoint:
+
+```typescript
+import { createPlugin, createEndpoint } from "better-billing";
+import { corePlugin } from "better-billing/plugins/core";
+import { z } from "zod";
+
+const analyticsPlugin = createPlugin(
+  (deps) => {
+    return {
+      // Extend database schema
+      schema: {
+        analytics: z.object({
+          id: z.string(),
+          event: z.string(),
+          userId: z.string(),
+          data: z.record(z.string()),
+          timestamp: z.date(),
+        }),
+      },
+
+      // Add API endpoints
+      endpoints: {
+        track: createEndpoint(
+          "/analytics/track",
+          {
+            method: "POST",
+            path: "/analytics/track",
+          },
+          async (request) => {
+            const { event, userId, data } = await request.json();
+            
+            // Save analytics event
+            await deps.db.create("analytics", {
+              id: crypto.randomUUID(),
+              event,
+              userId,
+              data,
+              timestamp: new Date(),
+            });
+
+            return { success: true };
+          }
+        ),
+      },
+    };
+  },
+  {
+    dependsOn: [corePlugin] as const,
+  }
+);
+```
+
+## Plugin Dependencies
+
+The dependency system ensures:
+- **Proper Initialization Order**: Dependencies are resolved before dependent plugins
+- **Type Safety**: TypeScript ensures required dependencies are available
+- **Schema Access**: Dependent plugins can access and extend parent schemas
+
+```typescript
+const myPlugin = createPlugin(
+  (deps) => {
+    // deps contains resolved dependencies with proper types
+    return { /* plugin implementation */ };
+  },
+  {
+    dependsOn: [corePlugin, stripePlugin] as const,
+  }
+);
+```
+
+## Plugin Composition
+
+When multiple plugins are used together, Better Billing automatically:
+
+### Schema Merging
+- **Additive**: New fields are added to existing tables
+- **Override**: Later plugins can override field types
+- **Validation**: Runtime validation using merged schemas
+
+### Provider Merging  
+- **Capability-Based**: Same provider can have multiple capabilities
+- **Method Composition**: Methods from different plugins are combined
+- **Type Safety**: Full TypeScript support for merged providers
+
+### Endpoint Merging
+- **Route Combination**: All endpoints are available under `/api/billing/`
+- **Conflict Resolution**: Later plugins override earlier ones for same routes
+- **Automatic Routing**: No manual routing configuration needed
+
+## Development Workflow
+
+1. **Plan Your Plugin**: Decide what functionality to add
+2. **Define Dependencies**: What other plugins do you need?
+3. **Design Schema**: What data structures are needed?
+4. **Implement Logic**: Create providers, endpoints, or both
+5. **Test Integration**: Verify it works with other plugins
+6. **Document Usage**: Help others understand how to use it
+
+## Best Practices
+
+1. **Single Responsibility**: Each plugin should have a clear purpose
+2. **Proper Dependencies**: Declare all plugin dependencies explicitly  
+3. **Schema Versioning**: Use optional fields for backward compatibility
+4. **Error Handling**: Handle errors gracefully in endpoints and providers
+5. **Type Safety**: Leverage TypeScript for better development experience
+6. **Testing**: Write tests for your plugin functionality
+
+## Common Patterns
+
+### Adding Custom Fields
+```typescript
+// Extend existing tables with custom fields
+schema: {
+  subscription: z.object({
+    customField: z.string().optional(),
+    metadata: z.record(z.string()),
+  }),
+}
+```
+
+### Custom Provider Capability
+```typescript
+// Add new capability to existing provider
+providers: [{
+  providerId: "stripe",
+  capability: "custom-feature",
+  methods: {
+    customMethod: async (params) => { /* implementation */ },
+  },
+}]
+```
+
+### Webhook Handler
+```typescript
+// Handle external webhooks
+endpoints: {
+  webhook: createEndpoint("/custom/webhook", {
+    method: "POST",
+    path: "/custom/webhook",
+  }, async (request) => {
+    // Process webhook payload
+    return { received: true };
+  }),
+}
+```
+
+## Next Steps
+
+Ready to build your first plugin? Choose your development path:
+
+- **Schema-First**: Start with [Schema Development](/docs/plugin-development/schema)
+- **Provider-First**: Begin with [Provider Development](/docs/plugin-development/providers)
+- **API-First**: Jump to [API Endpoints](/docs/plugin-development/api-endpoints)
+- **Learn by Example**: Explore [Plugin Examples](/docs/plugin-development/examples)
+

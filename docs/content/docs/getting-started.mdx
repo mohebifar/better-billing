@@ -1,0 +1,179 @@
+---
+title: Getting Started
+description: Learn how to set up Better Billing in your application
+icon: PartyPopper
+---
+
+Better Billing is a plugin-based billing system that provides type-safe subscription and payment management. This guide will walk you through the basic setup with the core plugin, which provides essential billing functionality without any payment processor.
+
+## Installation
+
+Install the required packages:
+
+
+```bash tab="npm"
+npm install better-billing
+```
+
+```bash tab="pnpm"
+pnpm add better-billing
+```
+
+```bash tab="yarn"
+yarn add better-billing
+```
+
+```bash tab="bun"
+bun add better-billing
+```
+
+## Core Setup
+
+Here's a basic setup with the core plugin only:
+
+```typescript
+import drizzleAdapter from "@better-billing/db/adapters/drizzle";
+import { betterBilling } from "better-billing";
+import { corePlugin } from "better-billing/plugins/core";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+
+import * as schema from "./schema";
+
+// Initialize your database (example with Drizzle and PostgreSQL)
+const connectionString = process.env.DATABASE_URL!;
+const client = postgres(connectionString);
+const drizzleDb = drizzle(client);
+
+// Create Better Billing instance
+const billing = betterBilling({
+  serverUrl: "http://localhost:3000",
+  adapter: drizzleAdapter(drizzleDb, {
+    provider: "pg",
+    schema, // Your Drizzle schema
+  }),
+  plugins: [
+    corePlugin({
+      subscriptionPlans: [
+        {
+          planName: "Free",
+        },
+        {
+          planName: "Pro",
+          trialDays: 7,
+        },
+        {
+          planName: "Enterprise",
+          trialDays: 14,
+        },
+      ],
+    }),
+  ] as const,
+});
+```
+
+## Understanding the Setup
+
+### 1. Database Adapter
+
+The `drizzleAdapter` connects Better Billing to your database:
+
+```typescript
+drizzleAdapter(drizzleDb, {
+  provider: "pg",        // Database provider: "pg" | "mysql" | "sqlite"
+  schema,                // Drizzle schema
+})
+```
+
+### 2. Core Plugin
+
+The core plugin provides essential billing functionality and schema:
+
+```typescript
+corePlugin({
+  subscriptionPlans: [
+    { planName: "Free" },
+    { planName: "Pro", trialDays: 7 },
+    { planName: "Enterprise", trialDays: 14 },
+  ],
+})
+```
+
+**Required:** The core plugin is mandatory as it provides the foundational database schema and billing concepts including:
+- Billable entities (users, organizations, teams)
+- Subscription management
+- Plan definitions
+- Payment methods storage
+- Invoice tracking
+
+## Set up API Endpoints
+
+For future webhooks and API functionality, you'll want to set up API endpoints in your framework:
+
+### Next.js
+
+Create a catch-all API route:
+
+```typescript
+// app/api/billing/[...path]/route.ts
+import { billing } from "@/lib/billing";
+import { toNextJsHandler } from "better-billing/integrations/next-js";
+
+const handler = toNextJsHandler(billing.api);
+
+export const { GET, POST, PUT, DELETE, PATCH } = handler;
+```
+
+### Other Frameworks
+
+Better Billing supports React Start, Solid Start, SvelteKit, Node.js/Express, and more. Each framework has a dedicated adapter for easy integration.
+
+See the [Framework Integrations guide](/docs/integrations) for detailed setup instructions for all supported frameworks.
+
+## Using the Core Functionality
+
+With the core setup, you can manage billable entities and subscriptions:
+
+### Check Active Subscriptions
+
+```typescript
+const activeSubscriptions = await billing.providers.core.getBillableActiveSubscriptions({
+  billableId: "user_123",
+  billableType: "user",
+});
+
+// Check if user has a specific plan
+const hasProPlan = activeSubscriptions.some((s) => s.planName === "Pro");
+
+// Check for any premium features
+const hasPremiumAccess = activeSubscriptions.some(s => 
+  ["Pro", "Enterprise"].includes(s.planName)
+);
+```
+
+### Working with Plans
+
+The core plugin provides plan management without payment processing:
+
+```typescript
+// Plans are defined in your plugin configuration
+const availablePlans = ["Free", "Pro", "Enterprise"];
+
+// You can use plans for feature gating
+function hasFeatureAccess(planName: string, feature: string): boolean {
+  const featureMap = {
+    "Free": ["basic_usage"],
+    "Pro": ["basic_usage", "advanced_features"],
+    "Enterprise": ["basic_usage", "advanced_features", "priority_support"]
+  };
+  
+  return featureMap[planName]?.includes(feature) ?? false;
+}
+```
+
+## Next Steps
+
+- **Add Payment Processing**: [Set up Stripe integration](/docs/stripe-setup) for payment processing
+- **Framework Integration**: [Configure API endpoints](/docs/integrations) for your framework
+- **Manage Subscriptions**: [Learn about providers](/docs/providers) to use billing methods
+- **Custom Features**: [Explore plugin development](/docs/plugin-development) to extend functionality

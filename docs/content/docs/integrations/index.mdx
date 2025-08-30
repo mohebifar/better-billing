@@ -1,0 +1,53 @@
+---
+title: Framework Integrations
+description: Learn how to integrate Better Billing with your favorite framework
+icon: Blocks
+---
+
+Better Billing provides dedicated adapters for popular web frameworks, making it easy to set up API endpoints for webhooks and billing functionality.
+
+## How Integrations Work
+
+All integrations work by converting Better Billing's router to your framework's expected format:
+
+```typescript
+import { toFrameworkHandler } from "better-billing/integrations/framework-name";
+
+// Convert Better Billing API to framework format
+const handler = toFrameworkHandler(billing.api);
+```
+
+## Available Integrations
+
+Choose your framework to get started:
+
+- **[Next.js](/docs/integrations/nextjs)** - Both App Router and Pages Router
+- **[Solid Start](/docs/integrations/solid-start)** - SolidJS framework integration
+- **[SvelteKit](/docs/integrations/sveltekit)** - Svelte framework with multiple approaches
+- **[Node.js/Express](/docs/integrations/nodejs)** - Traditional server setup
+- **[Custom Server](/docs/integrations/custom)** - For unsupported frameworks
+
+## Webhook Configuration
+
+Once your API endpoints are set up, you'll need to configure webhooks in your payment provider:
+
+### Stripe Webhook Setup
+
+1. Go to your [Stripe Dashboard](https://dashboard.stripe.com/webhooks)
+2. Click "Add endpoint"
+3. Enter your webhook URL: `https://yourdomain.com/api/billing/stripe/webhook`
+4. Select events or choose "Select all events" for full functionality
+5. Copy the webhook signing secret to your environment variables
+
+```bash
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
+```
+
+## API Routes Created
+
+When you set up any integration, Better Billing automatically creates these routes:
+
+### Stripe Plugin
+- `POST /api/billing/stripe/webhook` - Stripe webhook handler
+- `GET /api/billing/stripe/checkout-session/success` - Stripe checkout success handler
+- `GET /api/billing/stripe/checkout-session/cancel` - Stripe checkout cancel handler
