@@ -4,32 +4,41 @@ description: Learn how to set up Better Billing in your application
 icon: PartyPopper
 ---
 
-Better Billing is a plugin-based billing system that provides type-safe subscription and payment management. This guide will walk you through the basic setup with the core plugin, which provides essential billing functionality without any payment processor.
+import { Step, Steps } from 'fumadocs-ui/components/steps';
 
-## Installation
+Better Billing is a plugin-based billing system that provides type-safe subscription and payment management. This guide will walk you through setting up both the core plugin (essential) and the Stripe plugin (for payment processing).
+
+<Steps>
+<Step>
+### Installation
 
 Install the required packages:
 
-
 ```bash tab="npm"
-npm install better-billing
+npm install better-billing stripe
 ```
 
 ```bash tab="pnpm"
-pnpm add better-billing
+pnpm add better-billing stripe
 ```
 
 ```bash tab="yarn"
-yarn add better-billing
+yarn add better-billing stripe
 ```
 
 ```bash tab="bun"
-bun add better-billing
+bun add better-billing stripe
 ```
 
-## Core Setup
+<Callout type="info">
+The `stripe` package is optional and only needed if you plan to use the Stripe plugin for payment processing.
+</Callout>
+</Step>
 
-Here's a basic setup with the core plugin only:
+<Step>
+### Core Plugin Setup
+
+Start with the core plugin, which provides essential billing functionality:
 
 ```typescript
 import drizzleAdapter from "@better-billing/db/adapters/drizzle";
@@ -72,45 +81,93 @@ const billing = betterBilling({
 });
 ```
 
-## Understanding the Setup
+**Understanding the Core Plugin:**
 
-### 1. Database Adapter
+- **Database Adapter**: Connects Better Billing to your database with `drizzleAdapter(drizzleDb, { provider: "pg", schema })`
+- **Core Plugin**: Provides essential billing functionality and schema including:
+  - Billable entities (users, organizations, teams)
+  - Subscription management  
+  - Plan definitions
+  - Payment methods storage
+  - Invoice tracking
 
-The `drizzleAdapter` connects Better Billing to your database:
+<Callout type="warning">
+The core plugin is **mandatory** as it provides the foundational database schema and billing concepts.
+</Callout>
+</Step>
+
+<Step>
+### Add Stripe Plugin (Optional)
+
+To enable payment processing, add the Stripe plugin:
 
 ```typescript
-drizzleAdapter(drizzleDb, {
-  provider: "pg",        // Database provider: "pg" | "mysql" | "sqlite"
-  schema,                // Drizzle schema
-})
+import drizzleAdapter from "@better-billing/db/adapters/drizzle";
+import { betterBilling } from "better-billing";
+import { corePlugin } from "better-billing/plugins/core";
+import { stripePlugin } from "better-billing/plugins/stripe";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import Stripe from "stripe";
+
+import * as schema from "./schema";
+
+// Initialize Stripe
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+
+// Initialize your database
+const connectionString = process.env.DATABASE_URL!;
+const client = postgres(connectionString);
+const drizzleDb = drizzle(client);
+
+// Create Better Billing instance with both plugins
+const billing = betterBilling({
+  serverUrl: "http://localhost:3000",
+  adapter: drizzleAdapter(drizzleDb, {
+    provider: "pg",
+    schema,
+  }),
+  plugins: [
+    corePlugin({
+      subscriptionPlans: [
+        { planName: "Free" },
+        { planName: "Pro", trialDays: 7 },
+        { planName: "Enterprise", trialDays: 14 },
+      ],
+    }),
+    stripePlugin({
+      stripe,
+      subscriptionPlans: {
+        monthly: [
+          { planName: "Free", items: [{ price: "price_free_monthly" }] },
+          { planName: "Pro", items: [{ price: "price_pro_monthly" }] },
+          { planName: "Enterprise", items: [{ price: "price_enterprise_monthly" }] },
+        ],
+        yearly: [
+          { planName: "Free", items: [{ price: "price_free_yearly" }] },
+          { planName: "Pro", items: [{ price: "price_pro_yearly" }] },
+          { planName: "Enterprise", items: [{ price: "price_enterprise_yearly" }] },
+        ],
+      },
+      postSuccessUrl: "https://yourdomain.com/success",
+      postCancelUrl: "https://yourdomain.com/cancel",
+      webhookEndpointSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    }),
+  ] as const,
+});
 ```
 
-### 2. Core Plugin
+<Callout type="info">
+You'll need to create the corresponding price objects in your Stripe dashboard and set up webhook endpoints. See the [Stripe Setup guide](/docs/stripe-setup) for detailed instructions.
+</Callout>
+</Step>
 
-The core plugin provides essential billing functionality and schema:
+<Step>
+### Set up API Endpoints
 
-```typescript
-corePlugin({
-  subscriptionPlans: [
-    { planName: "Free" },
-    { planName: "Pro", trialDays: 7 },
-    { planName: "Enterprise", trialDays: 14 },
-  ],
-})
-```
+Set up API endpoints for webhooks and billing functionality:
 
-**Required:** The core plugin is mandatory as it provides the foundational database schema and billing concepts including:
-- Billable entities (users, organizations, teams)
-- Subscription management
-- Plan definitions
-- Payment methods storage
-- Invoice tracking
-
-## Set up API Endpoints
-
-For future webhooks and API functionality, you'll want to set up API endpoints in your framework:
-
-### Next.js
+**Next.js:**
 
 Create a catch-all API route:
 
@@ -124,17 +181,19 @@ const handler = toNextJsHandler(billing.api);
 export const { GET, POST, PUT, DELETE, PATCH } = handler;
 ```
 
-### Other Frameworks
+**Other Frameworks:**
 
 Better Billing supports React Start, Solid Start, SvelteKit, Node.js/Express, and more. Each framework has a dedicated adapter for easy integration.
 
 See the [Framework Integrations guide](/docs/integrations) for detailed setup instructions for all supported frameworks.
+</Step>
 
-## Using the Core Functionality
+<Step>
+### Test Your Setup
 
-With the core setup, you can manage billable entities and subscriptions:
+Test your billing setup with these examples:
 
-### Check Active Subscriptions
+**Check Active Subscriptions:**
 
 ```typescript
 const activeSubscriptions = await billing.providers.core.getBillableActiveSubscriptions({
@@ -151,14 +210,24 @@ const hasPremiumAccess = activeSubscriptions.some(s =>
 );
 ```
 
-### Working with Plans
-
-The core plugin provides plan management without payment processing:
+**Start a Subscription (with Stripe plugin):**
 
 ```typescript
-// Plans are defined in your plugin configuration
-const availablePlans = ["Free", "Pro", "Enterprise"];
+// Create a checkout session for a subscription
+const session = await billing.providers.stripe.startSubscriptionCheckout({
+  billableId: "user_123",
+  billableType: "user",
+  planName: "Pro",
+  cadence: "monthly",
+  email: "user@example.com",
+});
 
+console.log("Checkout URL:", session.url);
+```
+
+**Feature Gating:**
+
+```typescript
 // You can use plans for feature gating
 function hasFeatureAccess(planName: string, feature: string): boolean {
   const featureMap = {
@@ -170,10 +239,13 @@ function hasFeatureAccess(planName: string, feature: string): boolean {
   return featureMap[planName]?.includes(feature) ?? false;
 }
 ```
+</Step>
+</Steps>
 
 ## Next Steps
 
-- **Add Payment Processing**: [Set up Stripe integration](/docs/stripe-setup) for payment processing
-- **Framework Integration**: [Configure API endpoints](/docs/integrations) for your framework
-- **Manage Subscriptions**: [Learn about providers](/docs/providers) to use billing methods
-- **Custom Features**: [Explore plugin development](/docs/plugin-development) to extend functionality
+- **Advanced Stripe Setup**: [Complete Stripe configuration](/docs/stripe-setup) with webhooks and dashboard setup
+- **Framework Integration**: [Learn more integrations](/docs/integrations) for different frameworks
+- **Manage Subscriptions**: [Explore provider methods](/docs/providers) for advanced billing operations  
+- **Custom Features**: [Build custom plugins](/docs/plugin-development) to extend functionality
+- **Production Ready**: Set up proper environment variables, database migrations, and monitoring
