@@ -12,11 +12,6 @@
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
     },
-    "./client": {
-      "types": "./dist/client/index.d.ts",
-      "import": "./dist/client/index.mjs",
-      "require": "./dist/client/index.cjs"
-    },
     "./adapters/drizzle": {
       "types": "./dist/adapters/drizzle.d.ts",
       "import": "./dist/adapters/drizzle.mjs",
@@ -26,6 +21,41 @@
       "types": "./dist/adapters/prisma.d.ts",
       "import": "./dist/adapters/prisma.mjs",
       "require": "./dist/adapters/prisma.cjs"
+    },
+    "integrations/next-js": {
+      "types": "./dist/integrations/next-js.d.ts",
+      "import": "./dist/integrations/next-js.mjs",
+      "require": "./dist/integrations/next-js.cjs"
+    },
+    "integrations/node": {
+      "types": "./dist/integrations/node.d.ts",
+      "import": "./dist/integrations/node.mjs",
+      "require": "./dist/integrations/node.cjs"
+    },
+    "integrations/react-start": {
+      "types": "./dist/integrations/react-start.d.ts",
+      "import": "./dist/integrations/react-start.mjs",
+      "require": "./dist/integrations/react-start.cjs"
+    },
+    "integrations/solid-start": {
+      "types": "./dist/integrations/solid-start.d.ts",
+      "import": "./dist/integrations/solid-start.mjs",
+      "require": "./dist/integrations/solid-start.cjs"
+    },
+    "integrations/svelte-kit": {
+      "types": "./dist/integrations/svelte-kit.d.ts",
+      "import": "./dist/integrations/svelte-kit.mjs",
+      "require": "./dist/integrations/svelte-kit.cjs"
+    },
+    "./plugins/core": {
+      "types": "./dist/plugins/core/index.d.ts",
+      "import": "./dist/plugins/core/index.mjs",
+      "require": "./dist/plugins/core/index.cjs"
+    },
+    "./plugins/stripe": {
+      "types": "./dist/plugins/stripe/index.d.ts",
+      "import": "./dist/plugins/stripe/index.mjs",
+      "require": "./dist/plugins/stripe/index.cjs"
     }
   },
   "scripts": {
